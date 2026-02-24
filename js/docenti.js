@@ -59,6 +59,9 @@ let deletingId = null;      // ID del docente da eliminare
 // 1. INIT — Controllo accesso + caricamento
 // ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
+    // Inizializza sidebar + header
+    initPage("Anagrafica Docenti");
+
     // Controllo: solo Admin può stare qui
     const ruolo = sessionStorage.getItem('ruolo');
     if (ruolo !== 'admin') {
