@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anagrafica Docenti — Gestione Docenti</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:,">
     <style>
         /* ═══ HEADER ANAGRAFICA ═══ */
-        .page-header {
+        .page-header-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -18,7 +20,7 @@
             margin-bottom: 28px;
         }
 
-        .page-header h1 {
+        .page-header-bar h1 {
             font-family: 'Lora', serif;
             font-size: 1.8rem;
             font-weight: 700;
@@ -613,7 +615,7 @@
 
         /* ═══ RESPONSIVE ═══ */
         @media (max-width: 768px) {
-            .page-header {
+            .page-header-bar {
                 flex-direction: column;
                 align-items: flex-start;
             }
@@ -633,17 +635,15 @@
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar (iniettata da template.js) -->
-        <aside id="sidebar"></aside>
 
-        <!-- Contenuto principale -->
-        <main class="main-content">
-            <!-- Header (iniettato da template.js) -->
-            <header id="page-header"></header>
+    <!-- NESSUN <aside> e <header> statico! Li crea initPage() da template.js -->
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="page-body">
 
             <!-- ═══ HEADER ANAGRAFICA ═══ -->
-            <div class="page-header">
+            <div class="page-header-bar">
                 <h1>Anagrafica Docenti</h1>
                 <div class="header-actions">
                     <div class="search-box">
@@ -684,8 +684,9 @@
 
             <!-- ═══ GRIGLIA CARD ═══ -->
             <div class="docenti-grid" id="docenti-grid"></div>
-        </main>
-    </div>
+
+        </div>
+    </main>
 
     <!-- ═══════════════════════════════════ -->
     <!-- MODAL NUOVO / MODIFICA DOCENTE     -->
@@ -792,10 +793,8 @@
     <div class="toast" id="toast"></div>
 
     <!-- ═══ SCRIPTS ═══ -->
-    <!-- Firebase SDK (compat) — STESSI del login -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-    <!-- JS del progetto -->
     <script src="js/firebase-config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/template.js"></script>
