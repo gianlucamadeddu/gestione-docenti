@@ -72,7 +72,7 @@
         }
 
         /* ═══ BOTTONE NUOVO DOCENTE ═══ */
-        .btn-primary {
+        .btn-nuovo {
             font-family: 'Source Sans 3', sans-serif;
             font-size: 0.95rem;
             font-weight: 600;
@@ -88,15 +88,15 @@
             transition: background 0.2s, transform 0.1s;
         }
 
-        .btn-primary:hover {
+        .btn-nuovo:hover {
             background: #2D6A4F;
         }
 
-        .btn-primary:active {
+        .btn-nuovo:active {
             transform: scale(0.97);
         }
 
-        .btn-primary svg {
+        .btn-nuovo svg {
             width: 18px;
             height: 18px;
         }
@@ -384,30 +384,29 @@
             gap: 16px;
         }
 
-        .form-group {
+        .form-group-modal {
             display: flex;
             flex-direction: column;
             gap: 5px;
         }
 
-        .form-group.full-width {
+        .form-group-modal.full-width {
             grid-column: 1 / -1;
         }
 
-        .form-group label {
+        .form-group-modal label {
             font-family: 'Source Sans 3', sans-serif;
             font-size: 0.85rem;
             font-weight: 600;
             color: #555;
         }
 
-        .form-group label .required {
+        .form-group-modal label .required {
             color: #e74c3c;
             margin-left: 2px;
         }
 
-        .form-group input,
-        .form-group textarea {
+        .form-group-modal input {
             font-family: 'Source Sans 3', sans-serif;
             font-size: 0.95rem;
             padding: 10px 12px;
@@ -418,33 +417,31 @@
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        .form-group input:focus,
-        .form-group textarea:focus {
+        .form-group-modal input:focus {
             outline: none;
             border-color: #1B4332;
             box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.10);
             background: #fff;
         }
 
-        .form-group input.error,
-        .form-group textarea.error {
+        .form-group-modal input.error {
             border-color: #e74c3c;
             box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.10);
         }
 
-        .form-group .hint {
+        .form-group-modal .hint {
             font-size: 0.78rem;
             color: #aaa;
             margin-top: 1px;
         }
 
-        .form-group .error-msg {
+        .form-group-modal .error-msg {
             font-size: 0.8rem;
             color: #e74c3c;
             display: none;
         }
 
-        .form-group .error-msg.visible {
+        .form-group-modal .error-msg.visible {
             display: block;
         }
 
@@ -655,7 +652,7 @@
                         </svg>
                         <input type="text" id="search-input" placeholder="Cerca docente..." autocomplete="off">
                     </div>
-                    <button class="btn-primary" id="btn-nuovo-docente">
+                    <button class="btn-nuovo" id="btn-nuovo-docente">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                         </svg>
@@ -707,53 +704,53 @@
                 <form id="form-docente" novalidate>
                     <div class="form-grid">
                         <!-- Nome -->
-                        <div class="form-group">
+                        <div class="form-group-modal">
                             <label>Nome <span class="required">*</span></label>
                             <input type="text" id="field-nome" placeholder="Es. Mario" maxlength="50">
                             <span class="error-msg" id="err-nome">Il nome è obbligatorio</span>
                         </div>
 
                         <!-- Cognome -->
-                        <div class="form-group">
+                        <div class="form-group-modal">
                             <label>Cognome <span class="required">*</span></label>
                             <input type="text" id="field-cognome" placeholder="Es. Rossi" maxlength="50">
                             <span class="error-msg" id="err-cognome">Il cognome è obbligatorio</span>
                         </div>
 
                         <!-- Cellulare -->
-                        <div class="form-group">
+                        <div class="form-group-modal">
                             <label>Cellulare</label>
                             <input type="tel" id="field-cellulare" placeholder="Es. 333 1234567" maxlength="20">
                         </div>
 
                         <!-- Email -->
-                        <div class="form-group">
+                        <div class="form-group-modal">
                             <label>Email</label>
                             <input type="email" id="field-email" placeholder="Es. mario@email.it" maxlength="80">
                         </div>
 
                         <!-- Laurea -->
-                        <div class="form-group full-width">
+                        <div class="form-group-modal full-width">
                             <label>Laurea</label>
                             <input type="text" id="field-laurea" placeholder="Es. Lettere e Filosofia" maxlength="100">
                         </div>
 
                         <!-- Materie -->
-                        <div class="form-group full-width">
+                        <div class="form-group-modal full-width">
                             <label>Materie</label>
                             <input type="text" id="field-materie" placeholder="Es. Italiano, Storia, Geografia" maxlength="200">
                             <span class="hint">Separa le materie con una virgola</span>
                         </div>
 
                         <!-- Username -->
-                        <div class="form-group">
+                        <div class="form-group-modal">
                             <label>Username <span class="required">*</span></label>
                             <input type="text" id="field-username" placeholder="Es. mrossi" maxlength="30" autocomplete="off">
                             <span class="error-msg" id="err-username">Lo username è obbligatorio</span>
                         </div>
 
                         <!-- Password -->
-                        <div class="form-group">
+                        <div class="form-group-modal">
                             <label>Password <span class="required">*</span></label>
                             <input type="text" id="field-password" placeholder="Es. password123" maxlength="50" autocomplete="off">
                             <span class="error-msg" id="err-password">La password è obbligatoria</span>
@@ -795,6 +792,10 @@
     <div class="toast" id="toast"></div>
 
     <!-- ═══ SCRIPTS ═══ -->
+    <!-- Firebase SDK (compat) — STESSI del login -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- JS del progetto -->
     <script src="js/firebase-config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/template.js"></script>
