@@ -2,7 +2,6 @@
 //  DASHBOARD.JS — Solo Admin
 //  Legge da Firestore: docenti, ripetizioni
 //  Calcola statistiche, mostra ripetizioni di oggi e lista docenti
-//  Usa Firebase compat (v8) → db.collection(...)
 // ═══════════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -13,10 +12,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 2. Controlla che sia Admin (altrimenti redirect)
     checkAdmin();
 
-    // 3. Inizializza sidebar + header
-    if (typeof initTemplate === 'function') {
-        initTemplate('dashboard');
-    }
+    // 3. Inizializza sidebar + header (funzione da template.js)
+    initPage('Dashboard');
 
     // 4. Carica tutti i dati della dashboard
     await caricaDashboard();
@@ -80,7 +77,6 @@ async function caricaDashboard() {
             var ore = durata / 60;
             oreSett += ore;
 
-            // Trova tariffa del docente
             var docente = docentiMap[r.docenteId];
             var tariffa = docente ? (Number(docente.tariffaRipetizione) || 0) : 0;
             importoSett += ore * tariffa;
@@ -129,7 +125,6 @@ function renderRipetizioniOggi(ripetizioni, docentiMap) {
 
     badge.textContent = ripetizioni.length;
 
-    // Se non ci sono ripetizioni oggi
     if (ripetizioni.length === 0) {
         container.innerHTML =
             '<div class="empty-state">' +
@@ -192,12 +187,10 @@ function renderDocenti(docentiList) {
         return;
     }
 
-    // Ordina per cognome
     docentiList.sort(function (a, b) {
         return (a.cognome || '').localeCompare(b.cognome || '');
     });
 
-    // Colori ciclici per avatar
     var colori = ['#1B4332', '#BC6C25', '#1565C0', '#2D6A4F', '#7B2D26', '#5B4A8A'];
     var html = '';
 
@@ -209,13 +202,11 @@ function renderDocenti(docentiList) {
         var tariffaRip = doc.tariffaRipetizione != null ? Number(doc.tariffaRipetizione) : null;
         var colore = colori[index % colori.length];
 
-        // Badge materie
         var materieHtml = '';
         materie.forEach(function (m) {
             materieHtml += '<span class="badge-materia">' + escapeHtml(m) + '</span>';
         });
 
-        // Tariffe
         var parti = [];
         if (tariffaLez != null) parti.push('Lezioni: <span>€' + tariffaLez + '/lez</span>');
         if (tariffaRip != null) parti.push('Ripetizioni: <span>€' + tariffaRip + '/h</span>');
@@ -240,7 +231,6 @@ function renderDocenti(docentiList) {
 //  HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-/** Restituisce la data di oggi come "YYYY-MM-DD" */
 function getOggiString() {
     var d = new Date();
     var yyyy = d.getFullYear();
@@ -249,10 +239,9 @@ function getOggiString() {
     return yyyy + '-' + mm + '-' + dd;
 }
 
-/** Restituisce lunedì e venerdì della settimana corrente come "YYYY-MM-DD" */
 function getSettimanaCorrente() {
     var oggi = new Date();
-    var giorno = oggi.getDay(); // 0=dom, 1=lun ... 6=sab
+    var giorno = oggi.getDay();
     var diffLun = giorno === 0 ? -6 : 1 - giorno;
 
     var lunedi = new Date(oggi);
@@ -267,7 +256,6 @@ function getSettimanaCorrente() {
     };
 }
 
-/** Formatta un oggetto Date → "YYYY-MM-DD" */
 function formattaData(d) {
     var yyyy = d.getFullYear();
     var mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -275,7 +263,6 @@ function formattaData(d) {
     return yyyy + '-' + mm + '-' + dd;
 }
 
-/** Calcola ora fine: dato "HH:MM" + durata minuti → "HH:MM" */
 function calcolaOraFine(oraInizio, durataMin) {
     if (!oraInizio) return '--:--';
     var parti = oraInizio.split(':');
@@ -287,14 +274,12 @@ function calcolaOraFine(oraInizio, durataMin) {
     return String(hFine).padStart(2, '0') + ':' + String(mFine).padStart(2, '0');
 }
 
-/** Iniziali del docente (es. "Marco Rossi" → "MR") */
 function getInizialiDocente(nome, cognome) {
     var n = (nome || '').trim();
     var c = (cognome || '').trim();
     return ((n[0] || '') + (c[0] || '')).toUpperCase();
 }
 
-/** Escape HTML per sicurezza */
 function escapeHtml(str) {
     var div = document.createElement('div');
     div.textContent = str || '';
