@@ -1,35 +1,625 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Riepilogo Mensile — GestioneDocenti</title>
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riepilogo Mensile — Gestione Docenti</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:,">
+    <style>
+        /* ═══════════════════════════════════════════
+           RIEPILOGO MENSILE — STYLES
+           ═══════════════════════════════════════════ */
+
+        /* ── Header con navigatore mese ── */
+        .riepilogo-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .riepilogo-header .page-title {
+            margin: 0;
+        }
+
+        .mese-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mese-nav-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-white);
+            color: var(--text);
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .mese-nav-btn:hover {
+            background: var(--bg);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .mese-nav-label {
+            font-family: var(--font-heading);
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary);
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* ── 3 Stat cards in cima ── */
+        .riepilogo-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .rstat-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rstat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+        }
+
+        .rstat-card:nth-child(1)::before { background: #1565C0; }
+        .rstat-card:nth-child(2)::before { background: #BC6C25; }
+        .rstat-card:nth-child(3)::before { background: #1B4332; }
+
+        .rstat-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .rstat-label {
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .rstat-value {
+            font-family: var(--font-heading);
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.1;
+        }
+
+        .rstat-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ── Card Docente (accordion) ── */
+        .docente-riepilogo {
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .docente-riepilogo:hover {
+            box-shadow: 0 4px 16px rgba(27, 67, 50, 0.06);
+        }
+
+        .docente-riepilogo.open {
+            box-shadow: 0 4px 20px rgba(27, 67, 50, 0.1);
+        }
+
+        /* ── Riga chiusa (summary) ── */
+        .dr-summary {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 40px;
+            align-items: center;
+            padding: 18px 24px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            gap: 12px;
+        }
+
+        .dr-summary:hover {
+            background: rgba(27, 67, 50, 0.02);
+        }
+
+        .dr-docente {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .dr-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-heading);
+            font-size: 15px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .dr-nome {
+            font-family: var(--font-body);
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .dr-tariffe {
+            font-size: 12.5px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .dr-tariffe span {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .dr-col {
+            text-align: center;
+        }
+
+        .dr-col-importo {
+            font-family: var(--font-heading);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .dr-col-detail {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .dr-col-total .dr-col-importo {
+            font-size: 22px;
+            color: var(--primary);
+        }
+
+        .dr-col-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .dr-toggle {
+            font-size: 18px;
+            color: var(--text-muted);
+            transition: transform 0.25s ease;
+        }
+
+        .docente-riepilogo.open .dr-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* ── Dettaglio espanso ── */
+        .dr-detail {
+            display: none;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .docente-riepilogo.open .dr-detail {
+            display: block;
+        }
+
+        /* Sezione Mattina (azzurro) */
+        .dr-section-mattina {
+            background: #F0F7FF;
+            border-bottom: 1px solid #D6E8FA;
+            padding: 20px 24px;
+        }
+
+        .dr-section-title {
+            font-family: var(--font-heading);
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dr-section-mattina .dr-section-title {
+            color: var(--morning-text);
+        }
+
+        .mattina-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .mattina-giorno {
+            background: var(--bg-white);
+            border: 1px solid #D6E8FA;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .mattina-giorno-nome {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--morning-text);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 6px;
+        }
+
+        .mattina-giorno-lez {
+            font-family: var(--font-heading);
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+        }
+
+        .mattina-giorno-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .mattina-giorno-mese {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #E8F0FE;
+        }
+
+        .mattina-giorno-mese strong {
+            color: var(--primary);
+        }
+
+        .mattina-totale {
+            background: var(--bg-white);
+            border: 1px solid #D6E8FA;
+            border-radius: 8px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mattina-totale-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--morning-text);
+        }
+
+        .mattina-totale-value {
+            font-family: var(--font-heading);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .mattina-totale-detail {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-left: 12px;
+        }
+
+        /* Sezione Ripetizioni (arancione) */
+        .dr-section-ripetizioni {
+            background: #FFF9F0;
+            border-bottom: 1px solid #F5E6D0;
+            padding: 20px 24px;
+        }
+
+        .dr-section-ripetizioni .dr-section-title {
+            color: var(--accent);
+        }
+
+        .rip-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+
+        .rip-table thead {
+            background: rgba(188, 108, 37, 0.08);
+        }
+
+        .rip-table th {
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 1.5px solid #F0D9BC;
+        }
+
+        .rip-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #F5EDE0;
+            color: var(--text);
+        }
+
+        .rip-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .rip-table .text-right {
+            text-align: right;
+        }
+
+        .rip-table tfoot td {
+            padding: 12px 14px;
+            font-weight: 700;
+            border-top: 2px solid #E8D4B8;
+            color: var(--accent);
+        }
+
+        .rip-nessuna {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Sezione Totale Docente (verde) */
+        .dr-section-totale {
+            background: #F0F9F2;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .dr-section-totale .dr-section-title {
+            color: var(--primary);
+            margin-bottom: 0;
+        }
+
+        .dr-totale-big {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .dr-totale-importo {
+            font-family: var(--font-heading);
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .dr-totale-ore {
+            font-size: 15px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        /* ── Empty state ── */
+        .riepilogo-empty {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--text-muted);
+        }
+
+        .riepilogo-empty .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .riepilogo-empty p {
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+
+        /* ── Loading skeleton ── */
+        .skeleton {
+            background: linear-gradient(90deg, #F0EDEA 25%, #E8E5E0 50%, #F0EDEA 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 6px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1100px) {
+            .dr-summary {
+                grid-template-columns: 1.5fr 1fr 1fr 1fr 36px;
+                padding: 16px 18px;
+            }
+
+            .mattina-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .riepilogo-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .riepilogo-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .dr-summary {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .dr-col {
+                text-align: left;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .dr-col-label {
+                margin-bottom: 0;
+                min-width: 80px;
+            }
+
+            .dr-toggle {
+                position: absolute;
+                top: 18px;
+                right: 18px;
+            }
+
+            .dr-summary {
+                position: relative;
+            }
+
+            .mattina-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .rip-table {
+                font-size: 12px;
+            }
+
+            .rip-table th, .rip-table td {
+                padding: 8px 10px;
+            }
+
+            .dr-section-totale {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="main-content">
-    <div id="content">
-      <div class="loading"><div class="loading-spinner"></div></div>
-    </div>
-  </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- Sidebar + Header creati da template.js -->
 
-  <!-- JS Core -->
-  <script src="js/firebase-config.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/template.js"></script>
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
 
-  <!-- JS Pagina -->
-  <script src="js/riepilogo.js"></script>
+        <!-- Header con navigatore mese + export -->
+        <div class="riepilogo-header">
+            <h1 class="page-title">Riepilogo Mensile</h1>
 
-  <script>
-    checkAuth();
-    checkAdmin();
-    initPage("Riepilogo Mensile");
-  </script>
+            <div class="mese-nav">
+                <button class="mese-nav-btn" id="btn-mese-prev" title="Mese precedente">‹</button>
+                <span class="mese-nav-label" id="mese-label">—</span>
+                <button class="mese-nav-btn" id="btn-mese-next" title="Mese successivo">›</button>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn btn-accent" id="btn-esporta-csv" disabled>
+                    📥 Esporta CSV
+                </button>
+            </div>
+        </div>
+
+        <!-- 3 Stat cards -->
+        <div class="riepilogo-stats">
+            <div class="rstat-card">
+                <div class="rstat-icon">🕐</div>
+                <div class="rstat-label">Ore Totali</div>
+                <div class="rstat-value" id="rstat-ore">—</div>
+                <div class="rstat-sub" id="rstat-ore-sub"></div>
+            </div>
+            <div class="rstat-card">
+                <div class="rstat-icon">📅</div>
+                <div class="rstat-label">Giorni Lavorativi</div>
+                <div class="rstat-value" id="rstat-giorni">—</div>
+                <div class="rstat-sub" id="rstat-giorni-sub"></div>
+            </div>
+            <div class="rstat-card">
+                <div class="rstat-icon">💶</div>
+                <div class="rstat-label">Importo Totale Mese</div>
+                <div class="rstat-value" id="rstat-importo">—</div>
+                <div class="rstat-sub" id="rstat-importo-sub"></div>
+            </div>
+        </div>
+
+        <!-- Lista docenti (accordion) -->
+        <div id="lista-docenti-riepilogo">
+            <!-- Skeleton loading -->
+            <div class="docente-riepilogo">
+                <div class="dr-summary" style="cursor:default;">
+                    <div class="dr-docente">
+                        <div class="skeleton" style="width:44px;height:44px;border-radius:50%;flex-shrink:0;"></div>
+                        <div>
+                            <div class="skeleton" style="width:140px;height:16px;margin-bottom:6px;"></div>
+                            <div class="skeleton" style="width:100px;height:12px;"></div>
+                        </div>
+                    </div>
+                    <div class="dr-col"><div class="skeleton" style="width:70px;height:20px;margin:0 auto;"></div></div>
+                    <div class="dr-col"><div class="skeleton" style="width:70px;height:20px;margin:0 auto;"></div></div>
+                    <div class="dr-col"><div class="skeleton" style="width:80px;height:24px;margin:0 auto;"></div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- SCRIPTS -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/template.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/export-csv.js"></script>
+    <script src="js/riepilogo.js"></script>
 </body>
 </html>
