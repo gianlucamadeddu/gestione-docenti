@@ -2,13 +2,10 @@
 // ANAGRAFICA DOCENTI — js/docenti.js
 // CRUD completo su Firestore + ricerca client-side
 // Solo Admin può accedere a questa pagina
+// Usa Firebase compat SDK (stessa versione di firebase-config.js)
 // ═══════════════════════════════════════════════════════
 
-import { db } from './firebase-config.js';
-import {
-    collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
-    Timestamp, query, orderBy
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+console.log('📁 docenti.js caricato');
 
 // ── Riferimenti DOM ──────────────────────────────────
 const grid          = document.getElementById('docenti-grid');
@@ -50,6 +47,9 @@ const btnDeleteConfirm   = document.getElementById('btn-delete-confirm');
 
 // Toast
 const toast = document.getElementById('toast');
+
+// ── Firestore (compat SDK) ───────────────────────────
+const db = firebase.firestore();
 
 // ── Stato ────────────────────────────────────────────
 let docentiList = [];       // Array completo dei docenti caricati
@@ -108,17 +108,17 @@ async function caricaDocenti() {
     countEl.textContent = '';
 
     try {
-        const q = query(collection(db, 'docenti'), orderBy('cognome'));
-        const snapshot = await getDocs(q);
+        const snapshot = await db.collection('docenti').orderBy('cognome').get();
 
         docentiList = [];
         snapshot.forEach(docSnap => {
             docentiList.push({ id: docSnap.id, ...docSnap.data() });
         });
 
+        console.log('✅ Docenti caricati:', docentiList.length);
         renderDocenti(docentiList);
     } catch (error) {
-        console.error('Errore caricamento docenti:', error);
+        console.error('❌ Errore caricamento docenti:', error);
         showToast('Errore nel caricamento dei docenti', 'error');
     } finally {
         loading.style.display = 'none';
@@ -138,7 +138,7 @@ function renderDocenti(lista) {
     }
 
     emptyState.style.display = 'none';
-    countEl.textContent = `${lista.length} docent${lista.length === 1 ? 'e' : 'i'}`;
+    countEl.textContent = lista.length + ' docent' + (lista.length === 1 ? 'e' : 'i');
 
     lista.forEach(doc => {
         const card = creaCard(doc);
@@ -156,7 +156,7 @@ function creaCard(docente) {
     // Badge materie
     const materie = docente.materie || [];
     const badgesHTML = materie.map(m =>
-        `<span class="badge-materia">${escapeHtml(m.trim())}</span>`
+        '<span class="badge-materia">' + escapeHtml(m.trim()) + '</span>'
     ).join('');
 
     // Contatti
@@ -188,11 +188,11 @@ function creaCard(docente) {
             <div class="avatar">${escapeHtml(iniziali.toUpperCase())}</div>
             <div class="card-info">
                 <h3>${escapeHtml(docente.nome || '')} ${escapeHtml(docente.cognome || '')}</h3>
-                ${docente.laurea ? `<p class="card-laurea">${escapeHtml(docente.laurea)}</p>` : ''}
+                ${docente.laurea ? '<p class="card-laurea">' + escapeHtml(docente.laurea) + '</p>' : ''}
             </div>
         </div>
-        ${materie.length > 0 ? `<div class="card-materie">${badgesHTML}</div>` : ''}
-        ${contattiHTML ? `<div class="card-contatti">${contattiHTML}</div>` : ''}
+        ${materie.length > 0 ? '<div class="card-materie">' + badgesHTML + '</div>' : ''}
+        ${contattiHTML ? '<div class="card-contatti">' + contattiHTML + '</div>' : ''}
         <div class="card-actions">
             <button class="btn-action btn-edit" data-id="${docente.id}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -201,7 +201,7 @@ function creaCard(docente) {
                 </svg>
                 Modifica
             </button>
-            <button class="btn-action btn-delete" data-id="${docente.id}" data-nome="${escapeHtml(docente.nome || '')} ${escapeHtml(docente.cognome || '')}">
+            <button class="btn-action btn-delete" data-id="${docente.id}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"/>
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -218,7 +218,7 @@ function creaCard(docente) {
 
     // Event: Elimina
     card.querySelector('.btn-delete').addEventListener('click', () => {
-        apriDialogElimina(docente.id, `${docente.nome || ''} ${docente.cognome || ''}`);
+        apriDialogElimina(docente.id, (docente.nome || '') + ' ' + (docente.cognome || ''));
     });
 
     return card;
@@ -236,7 +236,7 @@ function filtraDocenti() {
     }
 
     const filtrati = docentiList.filter(d => {
-        const nomeCompleto = `${d.nome || ''} ${d.cognome || ''}`.toLowerCase();
+        const nomeCompleto = ((d.nome || '') + ' ' + (d.cognome || '')).toLowerCase();
         const materie = (d.materie || []).join(' ').toLowerCase();
         return nomeCompleto.includes(termine) || materie.includes(termine);
     });
@@ -358,17 +358,16 @@ async function salvaDocente(e) {
     try {
         if (editingId) {
             // ── UPDATE ──
-            const docRef = doc(db, 'docenti', editingId);
-            await updateDoc(docRef, dati);
+            await db.collection('docenti').doc(editingId).update(dati);
             showToast('Docente aggiornato con successo!', 'success');
         } else {
             // ── CREATE ──
-            dati.tariffaLezione    = 10;    // Default €10/lezione
-            dati.tariffaRipetizione = 10;   // Default €10/ora
-            dati.noteTariffa       = '';
-            dati.creatoIl          = Timestamp.now();
+            dati.tariffaLezione     = 10;    // Default €10/lezione
+            dati.tariffaRipetizione = 10;    // Default €10/ora
+            dati.noteTariffa        = '';
+            dati.creatoIl           = firebase.firestore.FieldValue.serverTimestamp();
 
-            await addDoc(collection(db, 'docenti'), dati);
+            await db.collection('docenti').add(dati);
             showToast('Docente creato con successo!', 'success');
         }
 
@@ -381,7 +380,7 @@ async function salvaDocente(e) {
         }
 
     } catch (error) {
-        console.error('Errore salvataggio:', error);
+        console.error('❌ Errore salvataggio:', error);
         showToast('Errore durante il salvataggio', 'error');
     } finally {
         btnSave.disabled = false;
@@ -410,7 +409,7 @@ async function confermaElimina() {
     btnDeleteConfirm.textContent = 'Eliminazione...';
 
     try {
-        await deleteDoc(doc(db, 'docenti', deletingId));
+        await db.collection('docenti').doc(deletingId).delete();
         showToast('Docente eliminato', 'success');
         chiudiDialogElimina();
         await caricaDocenti();
@@ -421,8 +420,8 @@ async function confermaElimina() {
         }
 
     } catch (error) {
-        console.error('Errore eliminazione:', error);
-        showToast('Errore durante l\'eliminazione', 'error');
+        console.error('❌ Errore eliminazione:', error);
+        showToast("Errore durante l'eliminazione", 'error');
     } finally {
         btnDeleteConfirm.disabled = false;
         btnDeleteConfirm.textContent = 'Elimina';
@@ -432,9 +431,10 @@ async function confermaElimina() {
 // ══════════════════════════════════════════════════════
 // 9. TOAST — Notifiche
 // ══════════════════════════════════════════════════════
-function showToast(messaggio, tipo = 'success') {
+function showToast(messaggio, tipo) {
+    tipo = tipo || 'success';
     toast.textContent = messaggio;
-    toast.className = `toast ${tipo}`;
+    toast.className = 'toast ' + tipo;
 
     // Forza reflow per riavviare animazione
     void toast.offsetWidth;
