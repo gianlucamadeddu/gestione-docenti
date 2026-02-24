@@ -48,8 +48,7 @@ const btnDeleteConfirm   = document.getElementById('btn-delete-confirm');
 // Toast
 const toast = document.getElementById('toast');
 
-// ── Firestore (compat SDK) ───────────────────────────
-// const db = firebase.firestore();  // già dichiarato in firebase-config.js
+// ── Firestore: usa "db" già dichiarato in firebase-config.js ──
 
 // ── Stato ────────────────────────────────────────────
 let docentiList = [];       // Array completo dei docenti caricati
