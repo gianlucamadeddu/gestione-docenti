@@ -13,7 +13,6 @@
            DASHBOARD SPECIFIC STYLES
            ═══════════════════════════════════════════ */
 
-        /* ---------- STAT CARDS ROW ---------- */
         .stats-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -61,22 +60,10 @@
             margin-bottom: 16px;
         }
 
-        .stat-card:nth-child(1) .stat-icon {
-            background: #D8F3DC;
-            color: #1B4332;
-        }
-        .stat-card:nth-child(2) .stat-icon {
-            background: #FEFAE0;
-            color: #BC6C25;
-        }
-        .stat-card:nth-child(3) .stat-icon {
-            background: #E3F2FD;
-            color: #1565C0;
-        }
-        .stat-card:nth-child(4) .stat-icon {
-            background: #D8F3DC;
-            color: #2D6A4F;
-        }
+        .stat-card:nth-child(1) .stat-icon { background: #D8F3DC; color: #1B4332; }
+        .stat-card:nth-child(2) .stat-icon { background: #FEFAE0; color: #BC6C25; }
+        .stat-card:nth-child(3) .stat-icon { background: #E3F2FD; color: #1565C0; }
+        .stat-card:nth-child(4) .stat-icon { background: #D8F3DC; color: #2D6A4F; }
 
         .stat-label {
             font-family: 'Source Sans 3', sans-serif;
@@ -96,12 +83,8 @@
             line-height: 1;
         }
 
-        .stat-value.loading {
-            color: #CCC;
-            font-size: 24px;
-        }
+        .stat-value.loading { color: #CCC; font-size: 24px; }
 
-        /* ---------- MAIN CONTENT GRID ---------- */
         .dashboard-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -133,9 +116,7 @@
             gap: 10px;
         }
 
-        .section-title .icon {
-            font-size: 20px;
-        }
+        .section-title .icon { font-size: 20px; }
 
         .section-badge {
             background: #D8F3DC;
@@ -153,7 +134,6 @@
             overflow-y: auto;
         }
 
-        /* ---------- RIPETIZIONI DI OGGI (LEFT) ---------- */
         .ripetizione-item {
             display: flex;
             align-items: flex-start;
@@ -162,15 +142,9 @@
             border-bottom: 1px solid #F5F3EF;
         }
 
-        .ripetizione-item:last-child {
-            border-bottom: none;
-        }
+        .ripetizione-item:last-child { border-bottom: none; }
 
-        .rip-time-block {
-            min-width: 70px;
-            text-align: center;
-            flex-shrink: 0;
-        }
+        .rip-time-block { min-width: 70px; text-align: center; flex-shrink: 0; }
 
         .rip-time-start {
             font-family: 'Lora', serif;
@@ -196,9 +170,7 @@
             align-self: stretch;
         }
 
-        .rip-details {
-            flex: 1;
-        }
+        .rip-details { flex: 1; }
 
         .rip-studente {
             font-family: 'Source Sans 3', sans-serif;
@@ -238,16 +210,8 @@
             border: 1px solid rgba(21, 101, 192, 0.2);
         }
 
-        .rip-docente {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            color: #777;
-        }
-
-        .rip-docente strong {
-            color: #555;
-            font-weight: 600;
-        }
+        .rip-docente { font-family: 'Source Sans 3', sans-serif; font-size: 13px; color: #777; }
+        .rip-docente strong { color: #555; font-weight: 600; }
 
         .rip-importo {
             font-family: 'Source Sans 3', sans-serif;
@@ -257,7 +221,6 @@
             margin-top: 4px;
         }
 
-        /* ---------- DOCENTI E TARIFFE (RIGHT) ---------- */
         .docente-item {
             display: flex;
             align-items: flex-start;
@@ -266,9 +229,7 @@
             border-bottom: 1px solid #F5F3EF;
         }
 
-        .docente-item:last-child {
-            border-bottom: none;
-        }
+        .docente-item:last-child { border-bottom: none; }
 
         .docente-avatar {
             width: 48px;
@@ -286,9 +247,7 @@
             letter-spacing: 0.5px;
         }
 
-        .docente-info {
-            flex: 1;
-        }
+        .docente-info { flex: 1; }
 
         .docente-nome {
             font-family: 'Source Sans 3', sans-serif;
@@ -298,54 +257,17 @@
             margin-bottom: 4px;
         }
 
-        .docente-materie {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 8px;
-        }
+        .docente-materie { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .docente-materie .badge-materia { font-size: 11px; padding: 2px 8px; }
 
-        .docente-materie .badge-materia {
-            font-size: 11px;
-            padding: 2px 8px;
-        }
+        .docente-tariffe { font-family: 'Source Sans 3', sans-serif; font-size: 13px; color: #777; }
+        .docente-tariffe span { color: #2D6A4F; font-weight: 600; }
+        .docente-tariffe .sep { color: #CCC; margin: 0 4px; }
 
-        .docente-tariffe {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            color: #777;
-        }
+        .empty-state { text-align: center; padding: 40px 20px; color: #AAA; }
+        .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+        .empty-state p { font-family: 'Source Sans 3', sans-serif; font-size: 15px; color: #999; }
 
-        .docente-tariffe span {
-            color: #2D6A4F;
-            font-weight: 600;
-        }
-
-        .docente-tariffe .sep {
-            color: #CCC;
-            margin: 0 4px;
-        }
-
-        /* ---------- EMPTY STATE ---------- */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #AAA;
-        }
-
-        .empty-state .empty-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-            opacity: 0.5;
-        }
-
-        .empty-state p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 15px;
-            color: #999;
-        }
-
-        /* ---------- LOADING SKELETON ---------- */
         .skeleton {
             background: linear-gradient(90deg, #F0EDEA 25%, #E8E5E0 50%, #F0EDEA 75%);
             background-size: 200% 100%;
@@ -358,78 +280,59 @@
             100% { background-position: -200% 0; }
         }
 
-        .skeleton-line {
-            height: 16px;
-            margin-bottom: 8px;
-        }
-
+        .skeleton-line { height: 16px; margin-bottom: 8px; }
         .skeleton-line.short { width: 60%; }
         .skeleton-line.medium { width: 80%; }
 
-        /* ---------- RESPONSIVE ---------- */
         @media (max-width: 1100px) {
-            .stats-row {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .dashboard-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 600px) {
-            .stats-row {
-                grid-template-columns: 1fr;
-            }
+            .stats-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
 
-    <!-- ═══ SIDEBAR (iniettata da template.js) ═══ -->
+    <!-- SIDEBAR (iniettata da template.js) -->
     <aside id="sidebar" class="sidebar"></aside>
 
-    <!-- ═══ MAIN CONTENT ═══ -->
+    <!-- MAIN CONTENT -->
     <main class="main-content">
-
-        <!-- HEADER (iniettato da template.js) -->
         <header id="page-header" class="page-header"></header>
 
-        <!-- PAGE BODY -->
         <div class="page-body">
 
-            <!-- ── 4 STAT CARDS ── -->
+            <!-- 4 STAT CARDS -->
             <div class="stats-row">
-
                 <div class="stat-card">
                     <div class="stat-icon">👨‍🏫</div>
                     <div class="stat-label">Docenti Attivi</div>
                     <div class="stat-value loading" id="stat-docenti">—</div>
                 </div>
-
                 <div class="stat-card">
                     <div class="stat-icon">📚</div>
                     <div class="stat-label">Ripetizioni Oggi</div>
                     <div class="stat-value loading" id="stat-rip-oggi">—</div>
                 </div>
-
                 <div class="stat-card">
                     <div class="stat-icon">🕐</div>
                     <div class="stat-label">Ore Settimana</div>
                     <div class="stat-value loading" id="stat-ore-sett">—</div>
                 </div>
-
                 <div class="stat-card">
                     <div class="stat-icon">💶</div>
                     <div class="stat-label">Importo Settimana</div>
                     <div class="stat-value loading" id="stat-importo-sett">—</div>
                 </div>
-
             </div>
 
-            <!-- ── TWO COLUMNS: RIPETIZIONI OGGI + DOCENTI ── -->
+            <!-- DUE COLONNE -->
             <div class="dashboard-grid">
 
-                <!-- LEFT — Ripetizioni di Oggi -->
+                <!-- SINISTRA — Ripetizioni di Oggi -->
                 <div class="section-card">
                     <div class="section-header">
                         <div class="section-title">
@@ -439,18 +342,6 @@
                         <span class="section-badge" id="badge-oggi-count">0</span>
                     </div>
                     <div class="section-body" id="lista-ripetizioni-oggi">
-                        <!-- Skeleton di caricamento -->
-                        <div class="ripetizione-item">
-                            <div class="rip-time-block">
-                                <div class="skeleton skeleton-line" style="width:50px;height:22px;margin:0 auto 4px;"></div>
-                                <div class="skeleton skeleton-line" style="width:40px;height:12px;margin:0 auto;"></div>
-                            </div>
-                            <div class="rip-divider skeleton" style="background:#EEE;"></div>
-                            <div class="rip-details" style="flex:1">
-                                <div class="skeleton skeleton-line medium"></div>
-                                <div class="skeleton skeleton-line short"></div>
-                            </div>
-                        </div>
                         <div class="ripetizione-item">
                             <div class="rip-time-block">
                                 <div class="skeleton skeleton-line" style="width:50px;height:22px;margin:0 auto 4px;"></div>
@@ -465,7 +356,7 @@
                     </div>
                 </div>
 
-                <!-- RIGHT — Docenti e Tariffe -->
+                <!-- DESTRA — Docenti e Tariffe -->
                 <div class="section-card">
                     <div class="section-header">
                         <div class="section-title">
@@ -475,14 +366,6 @@
                         <span class="section-badge" id="badge-docenti-count">0</span>
                     </div>
                     <div class="section-body" id="lista-docenti">
-                        <!-- Skeleton di caricamento -->
-                        <div class="docente-item">
-                            <div class="skeleton" style="width:48px;height:48px;border-radius:50%;flex-shrink:0;"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line medium"></div>
-                                <div class="skeleton skeleton-line short"></div>
-                            </div>
-                        </div>
                         <div class="docente-item">
                             <div class="skeleton" style="width:48px;height:48px;border-radius:50%;flex-shrink:0;"></div>
                             <div style="flex:1">
@@ -497,8 +380,15 @@
         </div>
     </main>
 
-    <!-- ═══ SCRIPTS ═══ -->
-    <script type="module" src="js/dashboard.js"></script>
+    <!-- ═══ SCRIPTS (stesso ordine del tuo index.html) ═══ -->
+    <!-- Firebase SDK (CDN compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- JS del progetto -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/template.js"></script>
+    <script src="js/dashboard.js"></script>
 
 </body>
 </html>
