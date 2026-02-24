@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — GestioneDocenti</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-page">
+
+  <div class="login-card">
+    <!-- Logo -->
+    <div class="login-logo">
+      <span class="login-logo-icon">🎓</span>
+      <div class="login-logo-text">GestioneDocenti</div>
+      <div class="login-logo-sub">Sistema di Gestione Docenti</div>
+    </div>
+
+    <!-- Errore -->
+    <div id="loginError" class="login-error">
+      Credenziali non valide.
+    </div>
+
+    <!-- Form -->
+    <div class="form-group">
+      <label class="form-label" for="username">Username</label>
+      <input
+        type="text"
+        id="username"
+        class="input"
+        placeholder="Inserisci il tuo username"
+        autocomplete="username"
+        autofocus
+      >
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="password">Password</label>
+      <div class="input-password-wrapper">
+        <input
+          type="password"
+          id="password"
+          class="input"
+          placeholder="Inserisci la tua password"
+          autocomplete="current-password"
+        >
+        <button type="button" class="input-password-toggle" id="togglePassword" aria-label="Mostra password">
+          👁️
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary login-btn" id="loginBtn" onclick="handleLogin()">
+      Accedi
+    </button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- JS del progetto -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+
+  <script>
+    // Se già loggato, redirect
+    const ruoloSalvato = sessionStorage.getItem("ruolo");
+    if (ruoloSalvato === "admin") {
+      window.location.href = "dashboard.html";
+    } else if (ruoloSalvato === "docente") {
+      window.location.href = "mio-orario.html";
+    }
+
+    // ──── TOGGLE PASSWORD ────
+    const toggleBtn = document.getElementById("togglePassword");
+    const passwordInput = document.getElementById("password");
+
+    toggleBtn.addEventListener("click", () => {
+      if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        toggleBtn.textContent = "🙈";
+      } else {
+        passwordInput.type = "password";
+        toggleBtn.textContent = "👁️";
+      }
+    });
+
+    // ──── LOGIN ────
+    async function handleLogin() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const errorDiv = document.getElementById("loginError");
+      const loginBtn = document.getElementById("loginBtn");
+
+      // Reset errore
+      errorDiv.classList.remove("visible");
+
+      // Disabilita bottone durante il login
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Accesso in corso...";
+
+      const result = await login(username, password);
+
+      if (!result.success) {
+        errorDiv.textContent = result.error;
+        errorDiv.classList.add("visible");
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Accedi";
+      }
+    }
+
+    // ──── ENTER PER ACCEDERE ────
+    document.getElementById("password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleLogin();
+    });
+
+    document.getElementById("username").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("password").focus();
+    });
+  </script>
+
+</body>
+</html>
