@@ -39,7 +39,44 @@
         }
 
         .toolbar-left .select {
-            min-width: 220px;
+            min-width: 180px;
+        }
+
+        /* Vista selector styling */
+        .vista-selector {
+            display: flex;
+            border: 1.5px solid #DDD9D0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #FFFFFF;
+        }
+
+        .vista-btn {
+            padding: 8px 16px;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-right: 1px solid #EFEDE8;
+            white-space: nowrap;
+        }
+
+        .vista-btn:last-child {
+            border-right: none;
+        }
+
+        .vista-btn:hover {
+            background: #F8F6F2;
+            color: #555;
+        }
+
+        .vista-btn.active {
+            background: #1B4332;
+            color: #FFFFFF;
         }
 
         /* Tabella orario */
@@ -129,13 +166,24 @@
         .cella-occupata {
             background: #F0FAF3;
             position: relative;
+            cursor: default;
+        }
+
+        /* Admin: cella cliccabile per modifica */
+        .cella-occupata.cella-editable {
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .cella-occupata.cella-editable:hover {
+            background: #E2F5E9;
         }
 
         .cella-content {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
         }
 
         .cella-materia {
@@ -148,6 +196,26 @@
         .cella-classe {
             background: #E3F2FD;
             color: #1565C0;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .cella-aula {
+            background: #FFF3E0;
+            color: #E65100;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .cella-docente {
+            background: #F3E5F5;
+            color: #6A1B9A;
             font-size: 11px;
             font-weight: 600;
             padding: 2px 8px;
@@ -172,6 +240,7 @@
             border-radius: 4px;
             transition: all 0.15s ease;
             line-height: 1;
+            z-index: 2;
         }
 
         .cella-remove:hover {
@@ -214,7 +283,7 @@
             color: #999;
         }
 
-        /* ── Modal Aggiungi Lezione ── */
+        /* ── Modal Aggiungi/Modifica Lezione ── */
         .modal-form-group {
             margin-bottom: 16px;
         }
@@ -270,6 +339,16 @@
             color: #999;
         }
 
+        /* Badge vista attiva nella toolbar */
+        .vista-label {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         /* Responsive */
         @media (max-width: 900px) {
             .orario-table thead th.col-fascia { width: 70px; }
@@ -279,12 +358,17 @@
             .fascia-fine { font-size: 10px; }
             .cella-materia { font-size: 12px; }
             .cella-classe { font-size: 10px; padding: 1px 6px; }
+            .cella-aula { font-size: 9px; }
+            .cella-docente { font-size: 10px; padding: 1px 6px; }
+            .vista-btn { padding: 6px 10px; font-size: 12px; }
         }
 
         @media (max-width: 600px) {
             .toolbar { flex-direction: column; align-items: flex-start; }
-            .toolbar-left { width: 100%; }
-            .toolbar-left .select { min-width: 0; flex: 1; }
+            .toolbar-left { width: 100%; flex-direction: column; align-items: stretch; }
+            .toolbar-left .select { min-width: 0; }
+            .vista-selector { width: 100%; }
+            .vista-btn { flex: 1; text-align: center; }
         }
     </style>
 </head>
@@ -296,11 +380,18 @@
     <main class="main-content">
         <div class="page-body">
 
-            <!-- TOOLBAR: selettore docente + bottone aggiungi -->
+            <!-- TOOLBAR: vista + selettore + bottone aggiungi -->
             <div class="toolbar" id="admin-toolbar">
                 <div class="toolbar-left">
-                    <label for="select-docente">Docente:</label>
-                    <select id="select-docente" class="select">
+                    <!-- Selettore vista -->
+                    <div class="vista-selector">
+                        <button class="vista-btn active" data-vista="docente" onclick="cambiaVista('docente')">👤 Docente</button>
+                        <button class="vista-btn" data-vista="aula" onclick="cambiaVista('aula')">🏫 Aula</button>
+                        <button class="vista-btn" data-vista="classe" onclick="cambiaVista('classe')">🎓 Classe</button>
+                    </div>
+
+                    <!-- Dropdown dinamico (cambia in base alla vista) -->
+                    <select id="select-entita" class="select">
                         <option value="">— Seleziona un docente —</option>
                     </select>
                 </div>
@@ -322,11 +413,11 @@
         </div>
     </main>
 
-    <!-- ═══════ MODAL AGGIUNGI LEZIONE ═══════ -->
+    <!-- ═══════ MODAL AGGIUNGI / MODIFICA LEZIONE ═══════ -->
     <div class="modal-overlay" id="modal-overlay">
         <div class="modal">
             <div class="modal-header">
-                <h3 class="modal-title">Aggiungi Lezione</h3>
+                <h3 class="modal-title" id="modal-title">Aggiungi Lezione</h3>
                 <button class="modal-close" id="modal-close">✕</button>
             </div>
             <div class="modal-body">
@@ -353,7 +444,16 @@
 
                 <div class="modal-form-group">
                     <label for="modal-classe">Classe</label>
-                    <input type="text" id="modal-classe" class="input" placeholder="Es. 3A">
+                    <select id="modal-classe" class="select">
+                        <option value="">— Seleziona classe —</option>
+                    </select>
+                </div>
+
+                <div class="modal-form-group">
+                    <label for="modal-aula">Aula</label>
+                    <select id="modal-aula" class="select">
+                        <option value="">— Seleziona aula —</option>
+                    </select>
                 </div>
             </div>
             <div class="modal-footer">
