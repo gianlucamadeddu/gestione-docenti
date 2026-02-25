@@ -349,6 +349,133 @@
             letter-spacing: 0.5px;
         }
 
+        /* ── Gestisci Aule e Classi Modal ── */
+        .gestisci-tabs {
+            display: flex;
+            border-bottom: 2px solid #EFEDE8;
+        }
+
+        .gestisci-tab {
+            flex: 1;
+            padding: 12px 16px;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .gestisci-tab:hover {
+            color: #555;
+            background: #F8F6F2;
+        }
+
+        .gestisci-tab.active {
+            color: #1B4332;
+            border-bottom-color: #1B4332;
+        }
+
+        .gestisci-panel {
+            padding: 20px 24px;
+        }
+
+        .gestisci-add-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .gestisci-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .gestisci-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #F8F6F2;
+            border: 1px solid #EFEDE8;
+            border-radius: 8px;
+            transition: all 0.15s ease;
+        }
+
+        .gestisci-item:hover {
+            border-color: #DDD9D0;
+        }
+
+        .gestisci-item-nome {
+            flex: 1;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .gestisci-item-input {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1.5px solid #1B4332;
+            border-radius: 6px;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 14px;
+            outline: none;
+            background: #fff;
+        }
+
+        .gestisci-item-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            line-height: 1;
+            color: #999;
+        }
+
+        .gestisci-item-btn:hover {
+            background: #EFEDE8;
+            color: #333;
+        }
+
+        .gestisci-item-btn.btn-delete:hover {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+
+        .gestisci-item-btn.btn-save {
+            color: #1B4332;
+        }
+
+        .gestisci-item-btn.btn-save:hover {
+            background: #D8F3DC;
+            color: #1B4332;
+        }
+
+        .gestisci-empty {
+            text-align: center;
+            padding: 24px;
+            color: #BBB;
+            font-size: 14px;
+        }
+
+        .gestisci-item-count {
+            font-size: 11px;
+            color: #BBB;
+            margin-left: 4px;
+        }
+
         /* Responsive */
         @media (max-width: 900px) {
             .orario-table thead th.col-fascia { width: 70px; }
@@ -395,9 +522,14 @@
                         <option value="">— Seleziona un docente —</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" id="btn-aggiungi" disabled>
-                    ➕ Aggiungi Lezione
-                </button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="btn btn-primary" id="btn-aggiungi" disabled>
+                        ➕ Aggiungi Lezione
+                    </button>
+                    <button class="btn btn-secondary" id="btn-gestisci" title="Gestisci Aule e Classi" onclick="apriGestisci()">
+                        ⚙️ Gestisci
+                    </button>
+                </div>
             </div>
 
             <!-- TABELLA ORARIO -->
@@ -459,6 +591,45 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="modal-cancel">Annulla</button>
                 <button class="btn btn-primary" id="modal-save">Salva Lezione</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ MODAL GESTISCI AULE E CLASSI ═══════ -->
+    <div class="modal-overlay" id="gestisci-overlay">
+        <div class="modal" style="max-width:520px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Gestisci Aule e Classi</h3>
+                <button class="modal-close" onclick="chiudiGestisci()">✕</button>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <!-- Tabs -->
+                <div class="gestisci-tabs">
+                    <button class="gestisci-tab active" data-tab="aule" onclick="switchGestisciTab('aule')">🏫 Aule</button>
+                    <button class="gestisci-tab" data-tab="classi" onclick="switchGestisciTab('classi')">🎓 Classi</button>
+                </div>
+
+                <!-- Tab Aule -->
+                <div class="gestisci-panel" id="panel-aule">
+                    <div class="gestisci-add-row">
+                        <input type="text" id="input-nuova-aula" class="input" placeholder="Nome nuova aula…" style="flex:1;" onkeydown="if(event.key==='Enter')aggiungiEntita('aule')">
+                        <button class="btn btn-primary btn-sm" onclick="aggiungiEntita('aule')">Aggiungi</button>
+                    </div>
+                    <div class="gestisci-list" id="lista-aule">
+                        <!-- Popolata da JS -->
+                    </div>
+                </div>
+
+                <!-- Tab Classi -->
+                <div class="gestisci-panel" id="panel-classi" style="display:none;">
+                    <div class="gestisci-add-row">
+                        <input type="text" id="input-nuova-classe" class="input" placeholder="Nome nuova classe…" style="flex:1;" onkeydown="if(event.key==='Enter')aggiungiEntita('classi')">
+                        <button class="btn btn-primary btn-sm" onclick="aggiungiEntita('classi')">Aggiungi</button>
+                    </div>
+                    <div class="gestisci-list" id="lista-classi">
+                        <!-- Popolata da JS -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
