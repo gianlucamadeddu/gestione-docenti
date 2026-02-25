@@ -1,8 +1,16 @@
 // ============================================================
-// calendario.js — Orario Scolastico (Admin + Docente)
+// calendario.js — Orario Scolastico v2.0
 // ============================================================
 // Gestisce la visualizzazione e modifica dell'orario settimanale.
-// - Admin (calendario.html): seleziona docente, aggiunge/rimuove lezioni
+//
+// NOVITÀ v2.0:
+// - Vista multi-modalità: Docente / Aula / Classe
+// - Modifica lezione (click su cella → modal precompilata)
+// - Dropdown Aula e Classe dalla rispettive collezioni Firestore
+// - Validazione conflitto aula (stessa aula, stesso giorno+slot)
+// - Info contestuali nelle celle in base alla vista attiva
+//
+// - Admin (calendario.html): seleziona docente/aula/classe, aggiunge/modifica/rimuove
 // - Docente (mio-orario.html): sola lettura del proprio orario
 //
 // Dipende da: utils.js (GIORNI, caricaImpostazioniOrari, calcolaFasceOrarie)
@@ -17,6 +25,16 @@ let fascePerGiorno = {};           // Mappa giorno → array di fasce calcolate
 let maxFasce = 0;                  // Numero massimo di fasce tra tutti i giorni
 let lezioniCorrente = [];          // Array di lezioni caricate da Firestore
 let docentiLista = [];             // Lista docenti per il dropdown admin
+let auleLista = [];                // Lista aule da Firestore
+let classiLista = [];              // Lista classi da Firestore
+
+// ── Vista corrente (solo admin) ──
+let vistaCorrente = "docente";     // "docente" | "aula" | "classe"
+let entitaSelezionata = "";        // ID docente / nome aula / nome classe
+
+// ── Modalità modal ──
+let modalMode = "add";             // "add" | "edit"
+let editingLezioneId = null;       // ID del documento in modifica
 
 // ── Riferimenti DOM ──
 let orarioContainer;
@@ -54,7 +72,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     initPage("Orario Scolastico");
   } else {
     initPage("Il Mio Orario");
-    // Mostra nome docente
     const nomeDisplay = document.getElementById("docente-nome-display");
     if (nomeDisplay) {
       nomeDisplay.textContent = getDocenteNome() || "Docente";
@@ -108,51 +125,69 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ============================================================
 
 async function initAdmin() {
-  const selectDocente = document.getElementById("select-docente");
+  const selectEntita = document.getElementById("select-entita");
   const btnAggiungi = document.getElementById("btn-aggiungi");
 
-  // Carica lista docenti
+  // Carica tutte le liste in parallelo
   try {
-    const snapshot = await db.collection("docenti").orderBy("cognome").get();
+    const [docSnap, auleSnap, classiSnap] = await Promise.all([
+      db.collection("docenti").orderBy("cognome").get(),
+      db.collection("aule").orderBy("nome").get(),
+      db.collection("classi").orderBy("nome").get(),
+    ]);
+
     docentiLista = [];
-    snapshot.forEach(doc => {
+    docSnap.forEach(doc => {
       docentiLista.push({ id: doc.id, ...doc.data() });
     });
 
-    // Popola dropdown
-    docentiLista.forEach(d => {
-      const opt = document.createElement("option");
-      opt.value = d.id;
-      opt.textContent = `${d.cognome} ${d.nome}`;
-      selectDocente.appendChild(opt);
+    auleLista = [];
+    auleSnap.forEach(doc => {
+      auleLista.push({ id: doc.id, ...doc.data() });
     });
+
+    classiLista = [];
+    classiSnap.forEach(doc => {
+      classiLista.push({ id: doc.id, ...doc.data() });
+    });
+
   } catch (err) {
-    console.error("Errore caricamento docenti:", err);
+    console.error("Errore caricamento liste:", err);
   }
 
-  // Al cambio docente → carica orario
-  selectDocente.addEventListener("change", async () => {
-    currentDocenteId = selectDocente.value;
-    btnAggiungi.disabled = !currentDocenteId;
+  // Popola dropdown iniziale (vista docente)
+  popolaDropdownEntita();
 
-    if (currentDocenteId) {
+  // Al cambio entità → carica orario
+  selectEntita.addEventListener("change", async () => {
+    entitaSelezionata = selectEntita.value;
+
+    // Bottone aggiungi: solo in vista docente e con docente selezionato
+    btnAggiungi.disabled = !(vistaCorrente === "docente" && entitaSelezionata);
+
+    if (entitaSelezionata) {
+      // In vista docente, salva il currentDocenteId
+      if (vistaCorrente === "docente") {
+        currentDocenteId = entitaSelezionata;
+      }
       await caricaEmostraOrario();
     } else {
-      mostraEmpty("Seleziona un docente per visualizzare l'orario.");
+      mostraEmptyPerVista();
     }
   });
 
-  // Bottone aggiungi → apri modal
+  // Bottone aggiungi → apri modal in modalità add
   btnAggiungi.addEventListener("click", () => {
-    if (!currentDocenteId) return;
-    apriModalAggiungi();
+    if (vistaCorrente !== "docente" || !entitaSelezionata) return;
+    currentDocenteId = entitaSelezionata;
+    apriModal("add");
   });
 
   // Setup modal
   setupModal();
 
   // Mostra stato iniziale
-  mostraEmpty("Seleziona un docente per visualizzare l'orario.");
+  mostraEmptyPerVista();
 }
 
 // ============================================================
@@ -171,6 +206,70 @@ async function initDocente() {
 }
 
 // ============================================================
+// CAMBIO VISTA (Docente / Aula / Classe)
+// ============================================================
+
+function cambiaVista(nuovaVista) {
+  if (nuovaVista === vistaCorrente) return;
+
+  vistaCorrente = nuovaVista;
+  entitaSelezionata = "";
+
+  // Aggiorna bottoni vista
+  document.querySelectorAll(".vista-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.vista === nuovaVista);
+  });
+
+  // Aggiorna dropdown
+  popolaDropdownEntita();
+
+  // Nascondi/mostra bottone aggiungi
+  const btnAggiungi = document.getElementById("btn-aggiungi");
+  btnAggiungi.disabled = true;
+  btnAggiungi.style.display = (nuovaVista === "docente") ? "" : "none";
+
+  // Reset tabella
+  mostraEmptyPerVista();
+}
+
+// ============================================================
+// POPOLA DROPDOWN IN BASE ALLA VISTA
+// ============================================================
+
+function popolaDropdownEntita() {
+  const select = document.getElementById("select-entita");
+  select.innerHTML = "";
+
+  if (vistaCorrente === "docente") {
+    select.innerHTML = `<option value="">— Seleziona un docente —</option>`;
+    docentiLista.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = `${d.cognome} ${d.nome}`;
+      select.appendChild(opt);
+    });
+
+  } else if (vistaCorrente === "aula") {
+    select.innerHTML = `<option value="">— Seleziona un'aula —</option>`;
+    auleLista.forEach(a => {
+      const opt = document.createElement("option");
+      opt.value = a.nome;
+      opt.textContent = a.nome;
+      select.appendChild(opt);
+    });
+
+  } else if (vistaCorrente === "classe") {
+    select.innerHTML = `<option value="">— Seleziona una classe —</option>`;
+    classiLista.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.nome;
+      opt.textContent = c.nome;
+      select.appendChild(opt);
+    });
+  }
+}
+
+// ============================================================
 // CARICA LEZIONI DA FIRESTORE + MOSTRA TABELLA
 // ============================================================
 
@@ -184,10 +283,30 @@ async function caricaEmostraOrario() {
   `;
 
   try {
-    // Query Firestore: lezioni del docente selezionato
-    const snapshot = await db.collection("orarioScolastico")
-      .where("docenteId", "==", currentDocenteId)
-      .get();
+    let snapshot;
+
+    // Query diversa in base alla vista
+    if (isDocente) {
+      // Docente: sempre per docenteId
+      snapshot = await db.collection("orarioScolastico")
+        .where("docenteId", "==", currentDocenteId)
+        .get();
+
+    } else if (vistaCorrente === "docente") {
+      snapshot = await db.collection("orarioScolastico")
+        .where("docenteId", "==", entitaSelezionata)
+        .get();
+
+    } else if (vistaCorrente === "aula") {
+      snapshot = await db.collection("orarioScolastico")
+        .where("aula", "==", entitaSelezionata)
+        .get();
+
+    } else if (vistaCorrente === "classe") {
+      snapshot = await db.collection("orarioScolastico")
+        .where("classe", "==", entitaSelezionata)
+        .get();
+    }
 
     lezioniCorrente = [];
     snapshot.forEach(doc => {
@@ -209,7 +328,7 @@ async function caricaEmostraOrario() {
 }
 
 // ============================================================
-// RENDER TABELLA ORARIO
+// RENDER TABELLA ORARIO (con info contestuali)
 // ============================================================
 
 function renderTabella() {
@@ -227,7 +346,17 @@ function renderTabella() {
   const mappaLezioni = {};
   lezioniCorrente.forEach(lez => {
     const key = `${lez.giorno}-${lez.slot}`;
-    mappaLezioni[key] = lez;
+    // In vista aula/classe potrebbero esserci più lezioni nello stesso slot
+    // (es: stessa classe con docenti diversi non dovrebbe succedere, ma gestiamo)
+    if (!mappaLezioni[key]) {
+      mappaLezioni[key] = lez;
+    }
+  });
+
+  // Mappa docentiId → nome (per viste aula/classe)
+  const mappaDocenti = {};
+  docentiLista.forEach(d => {
+    mappaDocenti[d.id] = `${d.cognome} ${d.nome}`;
   });
 
   // HTML tabella
@@ -247,7 +376,7 @@ function renderTabella() {
   for (let slot = 0; slot < maxFasce; slot++) {
     html += `<tr>`;
 
-    // Colonna fascia oraria (etichette dal giorno con più fasce)
+    // Colonna fascia oraria
     const fascia = fasceEtichette[slot];
     if (fascia) {
       html += `<td class="td-fascia">
@@ -263,32 +392,55 @@ function renderTabella() {
       const fasceGiorno = fascePerGiorno[giorno] || [];
       const numFasceGiorno = fasceGiorno.length;
 
-      // Se lo slot è fuori range per questo giorno → cella disabled
+      // Slot fuori range → cella disabled
       if (slot >= numFasceGiorno) {
         html += `<td class="cella-disabled"></td>`;
         return;
       }
 
-      // Cerca lezione in questo slot
       const key = `${giorno}-${slot}`;
       const lezione = mappaLezioni[key];
 
       if (lezione) {
-        // Cella occupata
-        html += `<td class="cella-occupata">
-          <div class="cella-content">
-            <span class="cella-materia">${escapeHtml(lezione.materia)}</span>
-            <span class="cella-classe">${escapeHtml(lezione.classe)}</span>
-          </div>`;
+        // ── Cella occupata con info contestuali ──
+        const editableClass = isAdmin && vistaCorrente === "docente" ? "cella-editable" : "";
+        const onClickEdit = isAdmin && vistaCorrente === "docente"
+          ? `onclick="apriModalModifica('${lezione.id}')"` : "";
 
-        // Solo admin: bottone rimuovi
-        if (isAdmin) {
-          html += `<button class="cella-remove" onclick="rimuoviLezione('${lezione.id}')" title="Rimuovi">✕</button>`;
+        html += `<td class="cella-occupata ${editableClass}" ${onClickEdit}>
+          <div class="cella-content">
+            <span class="cella-materia">${escapeHtml(lezione.materia)}</span>`;
+
+        // Info contestuali in base alla vista
+        if (vistaCorrente === "docente" || isDocente) {
+          // Vista docente: mostra classe + aula
+          html += `<span class="cella-classe">${escapeHtml(lezione.classe)}</span>`;
+          if (lezione.aula) {
+            html += `<span class="cella-aula">${escapeHtml(lezione.aula)}</span>`;
+          }
+        } else if (vistaCorrente === "aula") {
+          // Vista aula: mostra docente + classe
+          const nomeDoc = mappaDocenti[lezione.docenteId] || "—";
+          html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
+          html += `<span class="cella-classe">${escapeHtml(lezione.classe)}</span>`;
+        } else if (vistaCorrente === "classe") {
+          // Vista classe: mostra docente + aula
+          const nomeDoc = mappaDocenti[lezione.docenteId] || "—";
+          html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
+          if (lezione.aula) {
+            html += `<span class="cella-aula">${escapeHtml(lezione.aula)}</span>`;
+          }
+        }
+
+        html += `</div>`;
+
+        // Bottone rimuovi (solo admin in vista docente)
+        if (isAdmin && vistaCorrente === "docente") {
+          html += `<button class="cella-remove" onclick="event.stopPropagation(); rimuoviLezione('${lezione.id}')" title="Rimuovi">✕</button>`;
         }
 
         html += `</td>`;
       } else {
-        // Cella vuota disponibile
         html += `<td class="cella-vuota">—</td>`;
       }
     });
@@ -302,7 +454,7 @@ function renderTabella() {
 }
 
 // ============================================================
-// ADMIN: Modal Aggiungi Lezione
+// ADMIN: Modal Setup (Aggiungi / Modifica)
 // ============================================================
 
 function setupModal() {
@@ -312,6 +464,8 @@ function setupModal() {
   const btnSave = document.getElementById("modal-save");
   const selectGiorno = document.getElementById("modal-giorno");
   const selectFascia = document.getElementById("modal-fascia");
+  const selectClasse = document.getElementById("modal-classe");
+  const selectAula = document.getElementById("modal-aula");
 
   // Chiudi modal
   btnClose.addEventListener("click", chiudiModal);
@@ -328,58 +482,126 @@ function setupModal() {
     selectGiorno.appendChild(opt);
   });
 
+  // Popola select classi
+  classiLista.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.nome;
+    opt.textContent = c.nome;
+    selectClasse.appendChild(opt);
+  });
+
+  // Popola select aule
+  auleLista.forEach(a => {
+    const opt = document.createElement("option");
+    opt.value = a.nome;
+    opt.textContent = a.nome;
+    selectAula.appendChild(opt);
+  });
+
   // Al cambio giorno → aggiorna fasce disponibili
   selectGiorno.addEventListener("change", () => {
-    const giorno = selectGiorno.value;
-    selectFascia.innerHTML = "";
-
-    if (!giorno) {
-      selectFascia.disabled = true;
-      selectFascia.innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
-      return;
-    }
-
-    const fasce = fascePerGiorno[giorno] || [];
-
-    if (fasce.length === 0) {
-      selectFascia.disabled = true;
-      selectFascia.innerHTML = `<option value="">Nessuna fascia configurata</option>`;
-      return;
-    }
-
-    selectFascia.disabled = false;
-    selectFascia.innerHTML = `<option value="">— Seleziona fascia —</option>`;
-
-    fasce.forEach(f => {
-      // Controlla se lo slot è già occupato
-      const occupato = lezioniCorrente.some(l => l.giorno === giorno && l.slot === f.slot);
-      const opt = document.createElement("option");
-      opt.value = f.slot;
-      opt.textContent = `${f.start} – ${f.end}` + (occupato ? " (occupata)" : "");
-      opt.disabled = occupato;
-      selectFascia.appendChild(opt);
-    });
+    aggiornaFasceDisponibili();
   });
 
   // Salva lezione
   btnSave.addEventListener("click", salvaLezione);
 }
 
-function apriModalAggiungi() {
-  // Reset form
-  document.getElementById("modal-giorno").value = "";
-  document.getElementById("modal-fascia").innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
-  document.getElementById("modal-fascia").disabled = true;
-  document.getElementById("modal-materia").value = "";
-  document.getElementById("modal-classe").value = "";
+/**
+ * Aggiorna le fasce orarie disponibili nel dropdown della modal
+ */
+function aggiornaFasceDisponibili() {
+  const selectGiorno = document.getElementById("modal-giorno");
+  const selectFascia = document.getElementById("modal-fascia");
+  const giorno = selectGiorno.value;
+
+  selectFascia.innerHTML = "";
+
+  if (!giorno) {
+    selectFascia.disabled = true;
+    selectFascia.innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
+    return;
+  }
+
+  const fasce = fascePerGiorno[giorno] || [];
+
+  if (fasce.length === 0) {
+    selectFascia.disabled = true;
+    selectFascia.innerHTML = `<option value="">Nessuna fascia configurata</option>`;
+    return;
+  }
+
+  selectFascia.disabled = false;
+  selectFascia.innerHTML = `<option value="">— Seleziona fascia —</option>`;
+
+  fasce.forEach(f => {
+    // Controlla se lo slot è già occupato (escludi la lezione in modifica)
+    const occupato = lezioniCorrente.some(l =>
+      l.giorno === giorno && l.slot === f.slot && l.id !== editingLezioneId
+    );
+    const opt = document.createElement("option");
+    opt.value = f.slot;
+    opt.textContent = `${f.start} – ${f.end}` + (occupato ? " (occupata)" : "");
+    opt.disabled = occupato;
+    selectFascia.appendChild(opt);
+  });
+}
+
+// ============================================================
+// ADMIN: Apri Modal (add o edit)
+// ============================================================
+
+function apriModal(mode, lezione = null) {
+  modalMode = mode;
+  editingLezioneId = lezione ? lezione.id : null;
+
+  const titleEl = document.getElementById("modal-title");
+  const btnSave = document.getElementById("modal-save");
+
+  if (mode === "edit" && lezione) {
+    titleEl.textContent = "Modifica Lezione";
+    btnSave.textContent = "Salva Modifiche";
+
+    // Pre-compila i campi
+    document.getElementById("modal-giorno").value = lezione.giorno;
+    aggiornaFasceDisponibili();
+    document.getElementById("modal-fascia").value = lezione.slot;
+    document.getElementById("modal-materia").value = lezione.materia || "";
+    document.getElementById("modal-classe").value = lezione.classe || "";
+    document.getElementById("modal-aula").value = lezione.aula || "";
+
+  } else {
+    titleEl.textContent = "Aggiungi Lezione";
+    btnSave.textContent = "Salva Lezione";
+
+    // Reset form
+    document.getElementById("modal-giorno").value = "";
+    document.getElementById("modal-fascia").innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
+    document.getElementById("modal-fascia").disabled = true;
+    document.getElementById("modal-materia").value = "";
+    document.getElementById("modal-classe").value = "";
+    document.getElementById("modal-aula").value = "";
+  }
+
   nascondiErroreModal();
 
   // Mostra modal
   document.getElementById("modal-overlay").classList.add("active");
 }
 
+/**
+ * Apri modal in modifica dalla cella cliccata
+ */
+function apriModalModifica(lezioneId) {
+  const lezione = lezioniCorrente.find(l => l.id === lezioneId);
+  if (!lezione) return;
+  apriModal("edit", lezione);
+}
+
 function chiudiModal() {
   document.getElementById("modal-overlay").classList.remove("active");
+  modalMode = "add";
+  editingLezioneId = null;
 }
 
 function mostraErroreModal(msg) {
@@ -395,7 +617,7 @@ function nascondiErroreModal() {
 }
 
 // ============================================================
-// ADMIN: Salva nuova lezione su Firestore
+// ADMIN: Salva lezione (Add o Update) con validazione conflitto
 // ============================================================
 
 async function salvaLezione() {
@@ -404,9 +626,10 @@ async function salvaLezione() {
   const giorno = document.getElementById("modal-giorno").value;
   const slotStr = document.getElementById("modal-fascia").value;
   const materia = document.getElementById("modal-materia").value.trim();
-  const classe = document.getElementById("modal-classe").value.trim();
+  const classe = document.getElementById("modal-classe").value;
+  const aula = document.getElementById("modal-aula").value;
 
-  // Validazione
+  // Validazione campi
   if (!giorno) {
     mostraErroreModal("Seleziona un giorno.");
     return;
@@ -420,33 +643,83 @@ async function salvaLezione() {
     return;
   }
   if (!classe) {
-    mostraErroreModal("Inserisci la classe.");
+    mostraErroreModal("Seleziona una classe.");
+    return;
+  }
+  if (!aula) {
+    mostraErroreModal("Seleziona un'aula.");
     return;
   }
 
   const slot = parseInt(slotStr);
 
-  // Verifica che lo slot non sia già occupato (doppio check)
-  const occupato = lezioniCorrente.some(l => l.giorno === giorno && l.slot === slot);
-  if (occupato) {
-    mostraErroreModal("Questo slot è già occupato per il giorno selezionato.");
+  // ── Verifica slot docente non già occupato ──
+  const slotOccupato = lezioniCorrente.some(l =>
+    l.giorno === giorno && l.slot === slot && l.id !== editingLezioneId
+  );
+  if (slotOccupato) {
+    mostraErroreModal("Questo slot è già occupato per il docente selezionato.");
     return;
   }
 
   // Disabilita bottone salva
   const btnSave = document.getElementById("modal-save");
   btnSave.disabled = true;
-  btnSave.textContent = "Salvataggio…";
+  const originalText = btnSave.textContent;
+  btnSave.textContent = "Controllo disponibilità…";
 
   try {
-    // Salva su Firestore
-    await db.collection("orarioScolastico").add({
+    // ── Validazione conflitto AULA ──
+    // Cerca se qualcuno ha già prenotato quest'aula nello stesso giorno+slot
+    const conflittoAula = await db.collection("orarioScolastico")
+      .where("giorno", "==", giorno)
+      .where("slot", "==", slot)
+      .where("aula", "==", aula)
+      .get();
+
+    // Filtra: escludi il documento che stiamo modificando
+    const conflitti = [];
+    conflittoAula.forEach(doc => {
+      if (doc.id !== editingLezioneId) {
+        conflitti.push({ id: doc.id, ...doc.data() });
+      }
+    });
+
+    if (conflitti.length > 0) {
+      // Trova il nome del docente che ha l'aula occupata
+      const conflitto = conflitti[0];
+      const docConflitto = docentiLista.find(d => d.id === conflitto.docenteId);
+      const nomeConflitto = docConflitto
+        ? `${docConflitto.cognome} ${docConflitto.nome}`
+        : "un altro docente";
+
+      mostraErroreModal(
+        `L'aula "${aula}" è già occupata in ${giorno} a quest'ora da ${nomeConflitto} (${conflitto.materia} — ${conflitto.classe}).`
+      );
+      btnSave.disabled = false;
+      btnSave.textContent = originalText;
+      return;
+    }
+
+    // ── Salvataggio ──
+    btnSave.textContent = "Salvataggio…";
+
+    const datiLezione = {
       docenteId: currentDocenteId,
       giorno: giorno,
       slot: slot,
       materia: materia,
       classe: classe,
-    });
+      aula: aula,
+    };
+
+    if (modalMode === "edit" && editingLezioneId) {
+      // Update del documento esistente
+      await db.collection("orarioScolastico").doc(editingLezioneId).update(datiLezione);
+    } else {
+      // Add nuovo documento
+      await db.collection("orarioScolastico").add(datiLezione);
+    }
 
     // Chiudi modal e ricarica orario
     chiudiModal();
@@ -457,7 +730,7 @@ async function salvaLezione() {
     mostraErroreModal("Errore durante il salvataggio. Riprova.");
   } finally {
     btnSave.disabled = false;
-    btnSave.textContent = "Salva Lezione";
+    btnSave.textContent = originalText;
   }
 }
 
@@ -488,6 +761,16 @@ function mostraEmpty(messaggio) {
       <p>${messaggio}</p>
     </div>
   `;
+}
+
+function mostraEmptyPerVista() {
+  if (vistaCorrente === "docente") {
+    mostraEmpty("Seleziona un docente per visualizzare l'orario.");
+  } else if (vistaCorrente === "aula") {
+    mostraEmpty("Seleziona un'aula per visualizzare le lezioni assegnate.");
+  } else if (vistaCorrente === "classe") {
+    mostraEmpty("Seleziona una classe per visualizzare l'orario.");
+  }
 }
 
 /**
