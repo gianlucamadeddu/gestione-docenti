@@ -782,3 +782,296 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// ============================================================
+// GESTISCI AULE E CLASSI
+// ============================================================
+
+function apriGestisci() {
+  document.getElementById("gestisci-overlay").classList.add("active");
+  switchGestisciTab("aule");
+}
+
+function chiudiGestisci() {
+  document.getElementById("gestisci-overlay").classList.remove("active");
+}
+
+// Chiudi cliccando fuori
+document.addEventListener("click", (e) => {
+  const overlay = document.getElementById("gestisci-overlay");
+  if (e.target === overlay) chiudiGestisci();
+});
+
+/**
+ * Cambia tab tra Aule e Classi
+ */
+function switchGestisciTab(tab) {
+  // Aggiorna bottoni tab
+  document.querySelectorAll(".gestisci-tab").forEach(t => {
+    t.classList.toggle("active", t.dataset.tab === tab);
+  });
+
+  // Mostra/nascondi pannelli
+  document.getElementById("panel-aule").style.display = (tab === "aule") ? "" : "none";
+  document.getElementById("panel-classi").style.display = (tab === "classi") ? "" : "none";
+
+  // Renderizza la lista
+  renderGestisciLista(tab);
+}
+
+/**
+ * Renderizza la lista di aule o classi nel pannello
+ */
+function renderGestisciLista(tipo) {
+  const lista = tipo === "aule" ? auleLista : classiLista;
+  const container = document.getElementById(`lista-${tipo}`);
+
+  if (lista.length === 0) {
+    container.innerHTML = `<div class="gestisci-empty">Nessuna ${tipo === "aule" ? "aula" : "classe"} presente. Aggiungine una!</div>`;
+    return;
+  }
+
+  // Conta quante lezioni usano ciascun nome
+  const conteggioUso = {};
+  lezioniCorrente.forEach(l => {
+    const campo = tipo === "aule" ? l.aula : l.classe;
+    if (campo) conteggioUso[campo] = (conteggioUso[campo] || 0) + 1;
+  });
+
+  container.innerHTML = lista.map(item => {
+    const uso = conteggioUso[item.nome] || 0;
+    const usoLabel = uso > 0 ? `<span class="gestisci-item-count">(${uso} lez.)</span>` : "";
+    return `
+      <div class="gestisci-item" id="gestisci-item-${item.id}">
+        <span class="gestisci-item-nome">${escapeHtml(item.nome)}${usoLabel}</span>
+        <button class="gestisci-item-btn" onclick="iniziaRinomina('${tipo}', '${item.id}', '${escapeHtml(item.nome)}')" title="Rinomina">✏️</button>
+        <button class="gestisci-item-btn btn-delete" onclick="eliminaEntita('${tipo}', '${item.id}', '${escapeHtml(item.nome)}')" title="Elimina">🗑️</button>
+      </div>
+    `;
+  }).join("");
+}
+
+/**
+ * Aggiunge una nuova aula o classe su Firestore
+ */
+async function aggiungiEntita(tipo) {
+  const inputId = tipo === "aule" ? "input-nuova-aula" : "input-nuova-classe";
+  const input = document.getElementById(inputId);
+  const nome = input.value.trim();
+
+  if (!nome) return;
+
+  // Controlla duplicati
+  const lista = tipo === "aule" ? auleLista : classiLista;
+  const duplicato = lista.some(item => item.nome.toLowerCase() === nome.toLowerCase());
+  if (duplicato) {
+    alert(`Esiste già ${tipo === "aule" ? "un'aula" : "una classe"} con questo nome.`);
+    return;
+  }
+
+  try {
+    const ref = await db.collection(tipo).add({ nome: nome });
+
+    // Aggiorna lista locale
+    const nuovoItem = { id: ref.id, nome: nome };
+    if (tipo === "aule") {
+      auleLista.push(nuovoItem);
+      auleLista.sort((a, b) => a.nome.localeCompare(b.nome));
+    } else {
+      classiLista.push(nuovoItem);
+      classiLista.sort((a, b) => a.nome.localeCompare(b.nome));
+    }
+
+    // Aggiorna UI
+    input.value = "";
+    renderGestisciLista(tipo);
+    aggiornaDropdownModal();
+    // Aggiorna anche il dropdown entità se siamo nella vista giusta
+    if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
+      popolaDropdownEntita();
+    }
+
+  } catch (err) {
+    console.error("Errore aggiunta:", err);
+    alert("Errore durante l'aggiunta. Riprova.");
+  }
+}
+
+/**
+ * Attiva la modalità rinomina per un item
+ */
+function iniziaRinomina(tipo, id, nomeAttuale) {
+  const itemEl = document.getElementById(`gestisci-item-${id}`);
+  if (!itemEl) return;
+
+  itemEl.innerHTML = `
+    <input type="text" class="gestisci-item-input" id="rinomina-input-${id}" value="${nomeAttuale}" onkeydown="if(event.key==='Enter')salvaRinomina('${tipo}','${id}')">
+    <button class="gestisci-item-btn btn-save" onclick="salvaRinomina('${tipo}','${id}')" title="Salva">✅</button>
+    <button class="gestisci-item-btn" onclick="renderGestisciLista('${tipo}')" title="Annulla">❌</button>
+  `;
+
+  // Focus sull'input
+  const input = document.getElementById(`rinomina-input-${id}`);
+  input.focus();
+  input.select();
+}
+
+/**
+ * Salva la rinomina su Firestore e aggiorna le lezioni collegate
+ */
+async function salvaRinomina(tipo, id) {
+  const input = document.getElementById(`rinomina-input-${id}`);
+  if (!input) return;
+
+  const nuovoNome = input.value.trim();
+  if (!nuovoNome) return;
+
+  const lista = tipo === "aule" ? auleLista : classiLista;
+  const item = lista.find(i => i.id === id);
+  if (!item) return;
+
+  const vecchioNome = item.nome;
+
+  // Se il nome non è cambiato, chiudi semplicemente
+  if (nuovoNome === vecchioNome) {
+    renderGestisciLista(tipo);
+    return;
+  }
+
+  // Controlla duplicati
+  const duplicato = lista.some(i => i.id !== id && i.nome.toLowerCase() === nuovoNome.toLowerCase());
+  if (duplicato) {
+    alert(`Esiste già ${tipo === "aule" ? "un'aula" : "una classe"} con questo nome.`);
+    return;
+  }
+
+  try {
+    // 1. Aggiorna il documento nella collezione aule/classi
+    await db.collection(tipo).doc(id).update({ nome: nuovoNome });
+
+    // 2. Aggiorna tutte le lezioni che usano il vecchio nome
+    const campo = tipo === "aule" ? "aula" : "classe";
+    const snapshot = await db.collection("orarioScolastico")
+      .where(campo, "==", vecchioNome)
+      .get();
+
+    if (!snapshot.empty) {
+      const batch = db.batch();
+      snapshot.forEach(doc => {
+        batch.update(doc.ref, { [campo]: nuovoNome });
+      });
+      await batch.commit();
+    }
+
+    // 3. Aggiorna lista locale
+    item.nome = nuovoNome;
+    lista.sort((a, b) => a.nome.localeCompare(b.nome));
+
+    // 4. Aggiorna anche lezioniCorrente in locale
+    lezioniCorrente.forEach(l => {
+      if (l[campo] === vecchioNome) l[campo] = nuovoNome;
+    });
+
+    // 5. Refresh UI
+    renderGestisciLista(tipo);
+    aggiornaDropdownModal();
+    if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
+      popolaDropdownEntita();
+    }
+    // Refresh tabella se visibile
+    if (entitaSelezionata) renderTabella();
+
+  } catch (err) {
+    console.error("Errore rinomina:", err);
+    alert("Errore durante la rinomina. Riprova.");
+  }
+}
+
+/**
+ * Elimina un'aula o classe da Firestore
+ */
+async function eliminaEntita(tipo, id, nome) {
+  // Verifica se è in uso nelle lezioni
+  const campo = tipo === "aule" ? "aula" : "classe";
+  const snapshot = await db.collection("orarioScolastico")
+    .where(campo, "==", nome)
+    .get();
+
+  if (!snapshot.empty) {
+    const conferma = confirm(
+      `"${nome}" è usata in ${snapshot.size} lezione/i nell'orario.\n\n` +
+      `Se elimini, il campo ${campo} verrà svuotato in quelle lezioni.\n\nProcedere?`
+    );
+    if (!conferma) return;
+
+    // Svuota il campo nelle lezioni
+    const batch = db.batch();
+    snapshot.forEach(doc => {
+      batch.update(doc.ref, { [campo]: "" });
+    });
+    await batch.commit();
+
+    // Aggiorna lezioniCorrente localmente
+    lezioniCorrente.forEach(l => {
+      if (l[campo] === nome) l[campo] = "";
+    });
+  } else {
+    if (!confirm(`Eliminare "${nome}"?`)) return;
+  }
+
+  try {
+    // Elimina il documento
+    await db.collection(tipo).doc(id).delete();
+
+    // Aggiorna lista locale
+    if (tipo === "aule") {
+      auleLista = auleLista.filter(a => a.id !== id);
+    } else {
+      classiLista = classiLista.filter(c => c.id !== id);
+    }
+
+    // Refresh UI
+    renderGestisciLista(tipo);
+    aggiornaDropdownModal();
+    if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
+      popolaDropdownEntita();
+    }
+    if (entitaSelezionata) renderTabella();
+
+  } catch (err) {
+    console.error("Errore eliminazione:", err);
+    alert("Errore durante l'eliminazione. Riprova.");
+  }
+}
+
+/**
+ * Aggiorna i dropdown aula e classe nella modal lezione
+ */
+function aggiornaDropdownModal() {
+  const selectClasse = document.getElementById("modal-classe");
+  const selectAula = document.getElementById("modal-aula");
+
+  if (selectClasse) {
+    const valCorrente = selectClasse.value;
+    selectClasse.innerHTML = `<option value="">— Seleziona classe —</option>`;
+    classiLista.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.nome;
+      opt.textContent = c.nome;
+      selectClasse.appendChild(opt);
+    });
+    selectClasse.value = valCorrente;
+  }
+
+  if (selectAula) {
+    const valCorrente = selectAula.value;
+    selectAula.innerHTML = `<option value="">— Seleziona aula —</option>`;
+    auleLista.forEach(a => {
+      const opt = document.createElement("option");
+      opt.value = a.nome;
+      opt.textContent = a.nome;
+      selectAula.appendChild(opt);
+    });
+    selectAula.value = valCorrente;
+  }
+}
