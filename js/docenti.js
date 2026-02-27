@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // ANAGRAFICA DOCENTI — js/docenti.js
 // CRUD completo su Firestore + ricerca client-side
-// Solo Admin può accedere a questa pagina
-// Usa Firebase compat SDK (stessa versione di firebase-config.js)
+// Con gestione tariffe (lezione + ripetizione) per docente
 // ═══════════════════════════════════════════════════════
 
 console.log('📁 docenti.js caricato');
@@ -24,20 +23,23 @@ const btnClose      = document.getElementById('modal-close');
 const btnSave       = document.getElementById('btn-save');
 
 // Campi form
-const fieldNome       = document.getElementById('field-nome');
-const fieldCognome    = document.getElementById('field-cognome');
-const fieldCellulare  = document.getElementById('field-cellulare');
-const fieldEmail      = document.getElementById('field-email');
-const fieldLaurea     = document.getElementById('field-laurea');
-const fieldMaterie    = document.getElementById('field-materie');
-const fieldUsername   = document.getElementById('field-username');
-const fieldPassword   = document.getElementById('field-password');
+const fieldNome              = document.getElementById('field-nome');
+const fieldCognome           = document.getElementById('field-cognome');
+const fieldCellulare         = document.getElementById('field-cellulare');
+const fieldEmail             = document.getElementById('field-email');
+const fieldLaurea            = document.getElementById('field-laurea');
+const fieldMaterie           = document.getElementById('field-materie');
+const fieldUsername          = document.getElementById('field-username');
+const fieldPassword          = document.getElementById('field-password');
+const fieldTariffaLezione    = document.getElementById('field-tariffa-lezione');
+const fieldTariffaRipetizione = document.getElementById('field-tariffa-ripetizione');
+const fieldNoteTariffa       = document.getElementById('field-note-tariffa');
 
 // Errori
 const errNome     = document.getElementById('err-nome');
 const errCognome  = document.getElementById('err-cognome');
 const errUsername  = document.getElementById('err-username');
-const errPassword  = document.getElementById('err-password');
+const errPassword = document.getElementById('err-password');
 
 // Dialog elimina
 const dialogElimina      = document.getElementById('dialog-elimina');
@@ -48,31 +50,25 @@ const btnDeleteConfirm   = document.getElementById('btn-delete-confirm');
 // Toast
 const toast = document.getElementById('toast');
 
-// ── Firestore: usa "db" già dichiarato in firebase-config.js ──
-
 // ── Stato ────────────────────────────────────────────
-let docentiList = [];       // Array completo dei docenti caricati
-let editingId = null;       // ID del docente in modifica (null = nuovo)
-let deletingId = null;      // ID del docente da eliminare
+let docentiList = [];
+let editingId = null;
+let deletingId = null;
 
 // ══════════════════════════════════════════════════════
-// 1. INIT — Controllo accesso + caricamento
+// 1. INIT
 // ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
-    // Inizializza sidebar + header
     initPage("Anagrafica Docenti");
 
-    // Controllo: solo Admin può stare qui
     const ruolo = sessionStorage.getItem('ruolo');
     if (ruolo !== 'admin') {
         window.location.href = 'index.html';
         return;
     }
 
-    // Carica i docenti da Firestore
     await caricaDocenti();
 
-    // ── Event Listeners ──
     btnNuovo.addEventListener('click', apriModalNuovo);
     btnCancel.addEventListener('click', chiudiModal);
     btnClose.addEventListener('click', chiudiModal);
@@ -83,7 +79,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     searchInput.addEventListener('input', filtraDocenti);
 
-    // Chiudi modal cliccando fuori
     modalOverlay.addEventListener('click', (e) => {
         if (e.target === modalOverlay) chiudiModal();
     });
@@ -91,7 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target === dialogElimina) chiudiDialogElimina();
     });
 
-    // Chiudi con ESC
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (modalOverlay.classList.contains('active')) chiudiModal();
@@ -101,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ══════════════════════════════════════════════════════
-// 2. READ — Carica tutti i docenti da Firestore
+// 2. READ
 // ══════════════════════════════════════════════════════
 async function caricaDocenti() {
     loading.style.display = 'block';
@@ -111,12 +105,10 @@ async function caricaDocenti() {
 
     try {
         const snapshot = await db.collection('docenti').orderBy('cognome').get();
-
         docentiList = [];
         snapshot.forEach(docSnap => {
             docentiList.push({ id: docSnap.id, ...docSnap.data() });
         });
-
         console.log('✅ Docenti caricati:', docentiList.length);
         renderDocenti(docentiList);
     } catch (error) {
@@ -128,7 +120,7 @@ async function caricaDocenti() {
 }
 
 // ══════════════════════════════════════════════════════
-// 3. RENDER — Mostra le card dei docenti
+// 3. RENDER
 // ══════════════════════════════════════════════════════
 function renderDocenti(lista) {
     grid.innerHTML = '';
@@ -152,16 +144,15 @@ function creaCard(docente) {
     const card = document.createElement('div');
     card.className = 'docente-card';
 
-    // Iniziali per avatar
     const iniziali = (docente.nome?.[0] || '') + (docente.cognome?.[0] || '');
-
-    // Badge materie
     const materie = docente.materie || [];
     const badgesHTML = materie.map(m =>
         '<span class="badge-materia">' + escapeHtml(m.trim()) + '</span>'
     ).join('');
 
-    // Contatti
+    const tariffaLezione = docente.tariffaLezione ?? 0;
+    const tariffaRipetizione = docente.tariffaRipetizione ?? 0;
+
     let contattiHTML = '';
     if (docente.cellulare) {
         contattiHTML += `
@@ -194,6 +185,18 @@ function creaCard(docente) {
             </div>
         </div>
         ${materie.length > 0 ? '<div class="card-materie">' + badgesHTML + '</div>' : ''}
+        <div class="card-tariffe">
+            <div class="card-tariffa-box lezione">
+                <div class="card-tariffa-label">Lezione</div>
+                <div class="card-tariffa-valore">€${tariffaLezione}</div>
+                <div class="card-tariffa-unita">per lezione</div>
+            </div>
+            <div class="card-tariffa-box ripetizione">
+                <div class="card-tariffa-label">Ripetizione</div>
+                <div class="card-tariffa-valore">€${tariffaRipetizione}</div>
+                <div class="card-tariffa-unita">per ora</div>
+            </div>
+        </div>
         ${contattiHTML ? '<div class="card-contatti">' + contattiHTML + '</div>' : ''}
         <div class="card-actions">
             <button class="btn-action btn-edit" data-id="${docente.id}">
@@ -213,12 +216,10 @@ function creaCard(docente) {
         </div>
     `;
 
-    // Event: Modifica
     card.querySelector('.btn-edit').addEventListener('click', () => {
         apriModalModifica(docente);
     });
 
-    // Event: Elimina
     card.querySelector('.btn-delete').addEventListener('click', () => {
         apriDialogElimina(docente.id, (docente.nome || '') + ' ' + (docente.cognome || ''));
     });
@@ -227,7 +228,7 @@ function creaCard(docente) {
 }
 
 // ══════════════════════════════════════════════════════
-// 4. RICERCA — Filtro client-side
+// 4. RICERCA
 // ══════════════════════════════════════════════════════
 function filtraDocenti() {
     const termine = searchInput.value.trim().toLowerCase();
@@ -247,13 +248,17 @@ function filtraDocenti() {
 }
 
 // ══════════════════════════════════════════════════════
-// 5. MODAL — Apertura / Chiusura
+// 5. MODAL
 // ══════════════════════════════════════════════════════
 function apriModalNuovo() {
     editingId = null;
     modalTitle.textContent = 'Nuovo Docente';
     btnSave.textContent = 'Salva Docente';
     resetForm();
+    // Default tariffe per nuovo docente
+    fieldTariffaLezione.value = 10;
+    fieldTariffaRipetizione.value = 10;
+    fieldNoteTariffa.value = '';
     modalOverlay.classList.add('active');
     fieldNome.focus();
 }
@@ -264,15 +269,17 @@ function apriModalModifica(docente) {
     btnSave.textContent = 'Aggiorna Docente';
     resetForm();
 
-    // Popola i campi
     fieldNome.value      = docente.nome || '';
     fieldCognome.value   = docente.cognome || '';
     fieldCellulare.value = docente.cellulare || '';
     fieldEmail.value     = docente.email || '';
     fieldLaurea.value    = docente.laurea || '';
     fieldMaterie.value   = (docente.materie || []).join(', ');
-    fieldUsername.value  = docente.username || '';
-    fieldPassword.value  = docente.password || '';
+    fieldUsername.value   = docente.username || '';
+    fieldPassword.value   = docente.password || '';
+    fieldTariffaLezione.value    = docente.tariffaLezione ?? 10;
+    fieldTariffaRipetizione.value = docente.tariffaRipetizione ?? 10;
+    fieldNoteTariffa.value       = docente.noteTariffa || '';
 
     modalOverlay.classList.add('active');
     fieldNome.focus();
@@ -286,7 +293,6 @@ function chiudiModal() {
 
 function resetForm() {
     form.reset();
-    // Rimuovi errori
     [errNome, errCognome, errUsername, errPassword].forEach(el => el.classList.remove('visible'));
     [fieldNome, fieldCognome, fieldUsername, fieldPassword].forEach(el => el.classList.remove('error'));
 }
@@ -297,7 +303,6 @@ function resetForm() {
 function validaForm() {
     let valido = true;
 
-    // Reset errori
     [errNome, errCognome, errUsername, errPassword].forEach(el => el.classList.remove('visible'));
     [fieldNome, fieldCognome, fieldUsername, fieldPassword].forEach(el => el.classList.remove('error'));
 
@@ -329,46 +334,41 @@ function validaForm() {
 }
 
 // ══════════════════════════════════════════════════════
-// 7. CREATE / UPDATE — Salva docente su Firestore
+// 7. CREATE / UPDATE
 // ══════════════════════════════════════════════════════
 async function salvaDocente(e) {
     e.preventDefault();
 
     if (!validaForm()) return;
 
-    // Disabilita bottone durante salvataggio
     btnSave.disabled = true;
     btnSave.textContent = 'Salvataggio...';
 
-    // Costruisci oggetto dati
     const materieArray = fieldMaterie.value
         .split(',')
         .map(m => m.trim())
         .filter(m => m.length > 0);
 
     const dati = {
-        nome:       fieldNome.value.trim(),
-        cognome:    fieldCognome.value.trim(),
-        cellulare:  fieldCellulare.value.trim(),
-        email:      fieldEmail.value.trim(),
-        laurea:     fieldLaurea.value.trim(),
-        materie:    materieArray,
-        username:   fieldUsername.value.trim(),
-        password:   fieldPassword.value.trim()
+        nome:               fieldNome.value.trim(),
+        cognome:            fieldCognome.value.trim(),
+        cellulare:          fieldCellulare.value.trim(),
+        email:              fieldEmail.value.trim(),
+        laurea:             fieldLaurea.value.trim(),
+        materie:            materieArray,
+        username:           fieldUsername.value.trim(),
+        password:           fieldPassword.value.trim(),
+        tariffaLezione:     parseFloat(fieldTariffaLezione.value) || 0,
+        tariffaRipetizione: parseFloat(fieldTariffaRipetizione.value) || 0,
+        noteTariffa:        fieldNoteTariffa.value.trim()
     };
 
     try {
         if (editingId) {
-            // ── UPDATE ──
             await db.collection('docenti').doc(editingId).update(dati);
             showToast('Docente aggiornato con successo!', 'success');
         } else {
-            // ── CREATE ──
-            dati.tariffaLezione     = 10;    // Default €10/lezione
-            dati.tariffaRipetizione = 10;    // Default €10/ora
-            dati.noteTariffa        = '';
-            dati.creatoIl           = firebase.firestore.FieldValue.serverTimestamp();
-
+            dati.creatoIl = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('docenti').add(dati);
             showToast('Docente creato con successo!', 'success');
         }
@@ -376,11 +376,9 @@ async function salvaDocente(e) {
         chiudiModal();
         await caricaDocenti();
 
-        // Mantieni la ricerca attiva
         if (searchInput.value.trim()) {
             filtraDocenti();
         }
-
     } catch (error) {
         console.error('❌ Errore salvataggio:', error);
         showToast('Errore durante il salvataggio', 'error');
@@ -391,7 +389,7 @@ async function salvaDocente(e) {
 }
 
 // ══════════════════════════════════════════════════════
-// 8. DELETE — Eliminazione con conferma
+// 8. DELETE
 // ══════════════════════════════════════════════════════
 function apriDialogElimina(id, nomeCompleto) {
     deletingId = id;
@@ -416,11 +414,9 @@ async function confermaElimina() {
         chiudiDialogElimina();
         await caricaDocenti();
 
-        // Mantieni la ricerca attiva
         if (searchInput.value.trim()) {
             filtraDocenti();
         }
-
     } catch (error) {
         console.error('❌ Errore eliminazione:', error);
         showToast("Errore durante l'eliminazione", 'error');
@@ -431,24 +427,19 @@ async function confermaElimina() {
 }
 
 // ══════════════════════════════════════════════════════
-// 9. TOAST — Notifiche
+// 9. TOAST
 // ══════════════════════════════════════════════════════
 function showToast(messaggio, tipo) {
     tipo = tipo || 'success';
     toast.textContent = messaggio;
     toast.className = 'toast ' + tipo;
-
-    // Forza reflow per riavviare animazione
     void toast.offsetWidth;
     toast.classList.add('show');
-
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
+    setTimeout(() => { toast.classList.remove('show'); }, 3000);
 }
 
 // ══════════════════════════════════════════════════════
-// 10. UTILITY — Escape HTML per XSS prevention
+// 10. UTILITY
 // ══════════════════════════════════════════════════════
 function escapeHtml(str) {
     const div = document.createElement('div');
