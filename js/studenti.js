@@ -46,10 +46,15 @@ async function caricaClassi() {
       filterSelect.innerHTML += `<option value="${c.nome}">${c.nome}</option>`;
     });
 
-    const modalSelect = document.getElementById("sClasse");
-    modalSelect.innerHTML = '<option value="">— Nessuna classe —</option>';
-    classiLista.forEach(c => {
-      modalSelect.innerHTML += `<option value="${c.nome}">${c.nome}</option>`;
+    // Popola tutti e 4 i dropdown classe nel modal
+    ["sClasse", "sClasse2", "sClasse3", "sClasse4"].forEach((id, idx) => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = idx === 0
+        ? '<option value="">— Nessuna classe —</option>'
+        : '<option value="">— Nessuna —</option>';
+      classiLista.forEach(c => {
+        sel.innerHTML += `<option value="${c.nome}">${c.nome}</option>`;
+      });
     });
   } catch (err) {
     console.error("Errore caricamento classi:", err);
@@ -84,7 +89,11 @@ async function caricaStudenti() {
 function aggiornaStats() {
   document.getElementById("stat-totale").textContent = studentiLista.length;
 
-  const classiAttive = new Set(studentiLista.filter(s => s.classe).map(s => s.classe));
+  // Classi attive (tutte le classi assegnate a qualsiasi studente)
+  const classiAttive = new Set();
+  studentiLista.forEach(s => {
+    getClassiStudente(s).forEach(c => classiAttive.add(c));
+  });
   document.getElementById("stat-classi").textContent = classiAttive.size;
 
   const minorenni = studentiLista.filter(s => {
@@ -104,7 +113,7 @@ function filtraERendi() {
   let filtrati = studentiLista;
 
   if (classeFilter) {
-    filtrati = filtrati.filter(s => s.classe === classeFilter);
+    filtrati = filtrati.filter(s => getClassiStudente(s).includes(classeFilter));
   }
 
   if (query) {
@@ -242,10 +251,11 @@ function renderTabella(studenti) {
           </div>
         </td>
         <td>
-          ${s.classe
-            ? `<span class="badge-classe-table">${s.classe}</span>`
-            : '<span style="color:var(--text-muted)">Non assegnata</span>'
-          }
+          ${(() => {
+            const classi = getClassiStudente(s);
+            if (classi.length === 0) return '<span style="color:var(--text-muted)">Non assegnata</span>';
+            return classi.map(c => `<span class="badge-classe-table">${c}</span>`).join(" ");
+          })()}
         </td>
         <td class="contatto-cell">${contatti}</td>
         <td class="contatto-cell" style="font-size:12.5px;">${genitore}</td>
@@ -273,7 +283,9 @@ function apriModalNuovo() {
    "gNome", "gCognome", "gTelefono", "gEmail"].forEach(id => {
     document.getElementById(id).value = "";
   });
-  document.getElementById("sClasse").value = "";
+  ["sClasse", "sClasse2", "sClasse3", "sClasse4"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
 
   document.getElementById("modalStudente").classList.add("active");
 }
@@ -293,6 +305,9 @@ function apriModalModifica(id) {
   document.getElementById("sCognome").value = studente.cognome || "";
   document.getElementById("sDataNascita").value = studente.dataNascita || "";
   document.getElementById("sClasse").value = studente.classe || "";
+  document.getElementById("sClasse2").value = studente.classe2 || "";
+  document.getElementById("sClasse3").value = studente.classe3 || "";
+  document.getElementById("sClasse4").value = studente.classe4 || "";
   document.getElementById("sTelefono").value = studente.telefono || "";
   document.getElementById("sEmail").value = studente.email || "";
   document.getElementById("sNote").value = studente.note || "";
@@ -331,6 +346,9 @@ async function salvaStudente() {
     nome, cognome,
     dataNascita: document.getElementById("sDataNascita").value || "",
     classe: document.getElementById("sClasse").value || "",
+    classe2: document.getElementById("sClasse2").value || "",
+    classe3: document.getElementById("sClasse3").value || "",
+    classe4: document.getElementById("sClasse4").value || "",
     telefono: document.getElementById("sTelefono").value.trim() || "",
     email: document.getElementById("sEmail").value.trim() || "",
     note: document.getElementById("sNote").value.trim() || "",
@@ -341,6 +359,9 @@ async function salvaStudente() {
       email: document.getElementById("gEmail").value.trim() || "",
     }
   };
+
+  // Costruisci array classi (per query efficienti)
+  dati.classi = [dati.classe, dati.classe2, dati.classe3, dati.classe4].filter(c => c);
 
   try {
     if (editingId) {
@@ -404,6 +425,20 @@ async function confermaElimina() {
 // ══════════════════════════════════════════════
 // UTILITY
 // ══════════════════════════════════════════════
+
+/**
+ * Restituisce array di tutte le classi assegnate a uno studente
+ * Compatibile sia con vecchi dati (solo campo classe) sia con nuovi (classe + classe2/3/4 + classi)
+ */
+function getClassiStudente(s) {
+  // Se esiste l'array classi, usalo (ma filtra vuoti)
+  if (s.classi && Array.isArray(s.classi) && s.classi.length > 0) {
+    return s.classi.filter(c => c);
+  }
+  // Fallback: costruisci da campi singoli
+  return [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
+}
+
 function calcolaEta(dataNascitaStr) {
   if (!dataNascitaStr) return null;
   const nascita = new Date(dataNascitaStr);
