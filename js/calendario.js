@@ -34,6 +34,11 @@ let classiLista = [];
 let vistaCorrente = "docente";
 let entitaSelezionata = "";
 
+// ── Panorama Aule ──
+let panoramaGiorno = "";            // Giorno corrente nel panorama
+let panoramaLezioni = [];           // TUTTE le lezioni (senza filtro)
+let panoramaRipetizioni = [];       // TUTTE le ripetizioni della settimana
+
 // ── Navigazione settimanale ──
 let weekOffset = 0;
 let settimanaDate = [];            // 5 stringhe "YYYY-MM-DD" (lun→ven)
@@ -185,6 +190,10 @@ async function initAdmin() {
 
   // Bottone aggiungi → apri scelta tipo
   btnAggiungi.addEventListener("click", () => {
+    if (isPanoramaView()) {
+      apriSceltaTipo();
+      return;
+    }
     if (!entitaSelezionata) return;
     if (vistaCorrente === "docente") currentDocenteId = entitaSelezionata;
     apriSceltaTipo();
@@ -260,7 +269,9 @@ function setupWeekNav() {
       weekOffset--;
       settimanaDate = calcolaSettimanaDate(weekOffset);
       aggiornaLabelSettimana();
-      if (entitaSelezionata || isDocente) caricaEmostraOrario();
+      if (vistaCorrente === "panorama") caricaPanorama();
+      else if (vistaCorrente === "panorama_cal") caricaPanoramaCal();
+      else if (entitaSelezionata || isDocente) caricaEmostraOrario();
     });
   }
   if (btnOggi) {
@@ -268,7 +279,9 @@ function setupWeekNav() {
       weekOffset = 0;
       settimanaDate = calcolaSettimanaDate(weekOffset);
       aggiornaLabelSettimana();
-      if (entitaSelezionata || isDocente) caricaEmostraOrario();
+      if (vistaCorrente === "panorama") caricaPanorama();
+      else if (vistaCorrente === "panorama_cal") caricaPanoramaCal();
+      else if (entitaSelezionata || isDocente) caricaEmostraOrario();
     });
   }
   if (btnNext) {
@@ -276,7 +289,9 @@ function setupWeekNav() {
       weekOffset++;
       settimanaDate = calcolaSettimanaDate(weekOffset);
       aggiornaLabelSettimana();
-      if (entitaSelezionata || isDocente) caricaEmostraOrario();
+      if (vistaCorrente === "panorama") caricaPanorama();
+      else if (vistaCorrente === "panorama_cal") caricaPanoramaCal();
+      else if (entitaSelezionata || isDocente) caricaEmostraOrario();
     });
   }
 }
@@ -312,19 +327,515 @@ function cambiaVista(nuovaVista) {
     btn.classList.toggle("active", btn.dataset.vista === nuovaVista);
   });
 
-  popolaDropdownEntita();
-
+  const selectEntita = document.getElementById("select-entita");
   const btnAggiungi = document.getElementById("btn-aggiungi");
-  if (btnAggiungi) {
-    btnAggiungi.disabled = true;
-    // Il bottone aggiungi è sempre visibile, ma disabilitato se nessuna entità
-    btnAggiungi.textContent = nuovaVista === "docente" ? "➕ Aggiungi" : "➕ Aggiungi";
+  const btnStudenti = document.getElementById("btn-elenco-studenti");
+  const dayTabs = document.getElementById("day-tabs");
+
+  if (nuovaVista === "panorama") {
+    // Panorama Aule: nascondi dropdown, mostra tabs giorno
+    if (selectEntita) selectEntita.style.display = "none";
+    if (btnAggiungi) { btnAggiungi.disabled = false; btnAggiungi.textContent = "➕ Aggiungi"; }
+    if (btnStudenti) btnStudenti.style.display = "none";
+    if (dayTabs) dayTabs.style.display = "flex";
+
+    // Imposta giorno iniziale = oggi o lunedì
+    const oggi = new Date();
+    const dow = oggi.getDay(); // 0=dom, 1=lun, ...
+    const giornoOggi = dow >= 1 && dow <= 5 ? GIORNI[dow - 1] : GIORNI[0];
+    panoramaGiorno = giornoOggi;
+
+    caricaPanorama();
+  } else if (nuovaVista === "panorama_cal") {
+    // Panorama Calendario: nascondi dropdown e day tabs, mostra tutto settimanale
+    if (selectEntita) selectEntita.style.display = "none";
+    if (btnAggiungi) { btnAggiungi.disabled = false; btnAggiungi.textContent = "➕ Aggiungi"; }
+    if (btnStudenti) btnStudenti.style.display = "none";
+    if (dayTabs) dayTabs.style.display = "none";
+
+    caricaPanoramaCal();
+  } else {
+    // Viste normali: mostra dropdown, nascondi day tabs
+    if (selectEntita) selectEntita.style.display = "";
+    if (dayTabs) dayTabs.style.display = "none";
+
+    if (btnAggiungi) {
+      btnAggiungi.disabled = true;
+      btnAggiungi.textContent = "➕ Aggiungi";
+    }
+
+    if (btnStudenti) btnStudenti.style.display = "none";
+
+    popolaDropdownEntita();
+    mostraEmptyPerVista();
+  }
+}
+
+// ============================================================
+// PANORAMA AULE: Day tabs + Load + Render
+// ============================================================
+
+function aggiornaTabsGiorno() {
+  const container = document.getElementById("day-tabs");
+  if (!container) return;
+  container.innerHTML = "";
+
+  GIORNI.forEach((g, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "day-tab" + (g === panoramaGiorno ? " active" : "");
+    const dataStr = settimanaDate[idx];
+    const dataObj = dataStr ? new Date(dataStr + "T00:00:00") : null;
+    const numGiorno = dataObj ? dataObj.getDate() : "";
+    btn.innerHTML = `<span class="day-tab-nome">${g.substring(0, 3)}</span><span class="day-tab-num">${numGiorno}</span>`;
+    btn.onclick = () => {
+      panoramaGiorno = g;
+      aggiornaTabsGiorno();
+      renderTabellaPanorama();
+    };
+    container.appendChild(btn);
+  });
+}
+
+async function caricaPanorama() {
+  orarioContainer.innerHTML = `
+    <div class="orario-loading">
+      <div class="loading-spinner"></div>
+      <p>Caricamento panorama aule…</p>
+    </div>
+  `;
+
+  try {
+    // Carica TUTTE le lezioni (senza filtro)
+    const snapLezioni = await db.collection("orarioScolastico").get();
+    panoramaLezioni = [];
+    snapLezioni.forEach(doc => { panoramaLezioni.push({ id: doc.id, ...doc.data() }); });
+
+    // Carica TUTTE le ripetizioni della settimana
+    panoramaRipetizioni = [];
+    if (settimanaDate.length === 5) {
+      const snapRip = await db.collection("ripetizioni")
+        .where("data", ">=", settimanaDate[0])
+        .where("data", "<=", settimanaDate[4])
+        .get();
+      snapRip.forEach(doc => { panoramaRipetizioni.push({ id: doc.id, ...doc.data() }); });
+    }
+
+    aggiornaTabsGiorno();
+    renderTabellaPanorama();
+
+  } catch (err) {
+    console.error("Errore caricamento panorama:", err);
+    orarioContainer.innerHTML = `<div class="orario-empty"><div class="empty-icon">⚠️</div><p>Errore nel caricamento. Riprova.</p></div>`;
+  }
+}
+
+function renderTabellaPanorama() {
+  const giorno = panoramaGiorno;
+  const fpg = fascePerGiorno[giorno];
+  if (!fpg) {
+    orarioContainer.innerHTML = `<div class="orario-empty"><p>Nessuna fascia configurata per ${giorno}.</p></div>`;
+    return;
   }
 
-  const btnStudenti = document.getElementById("btn-elenco-studenti");
-  if (btnStudenti) btnStudenti.style.display = "none";
+  const aule = auleLista.map(a => a.nome);
+  if (aule.length === 0) {
+    orarioContainer.innerHTML = `<div class="orario-empty"><div class="empty-icon">🏫</div><p>Nessuna aula presente. Aggiungile da ⚙️ Gestisci.</p></div>`;
+    return;
+  }
 
-  mostraEmptyPerVista();
+  // Data del giorno selezionato
+  const idxGiorno = GIORNI.indexOf(giorno);
+  const dataGiorno = (idxGiorno >= 0 && settimanaDate.length > idxGiorno) ? settimanaDate[idxGiorno] : null;
+
+  // Mappa "slot-aula" → [items]
+  const mappa = {};
+
+  // Lezioni del giorno
+  panoramaLezioni.forEach(lez => {
+    if (lez.giorno !== giorno || !lez.aula) return;
+    const key = `${lez.slot}-${lez.aula}`;
+    if (!mappa[key]) mappa[key] = [];
+    mappa[key].push({ ...lez, _tipo: "lezione" });
+  });
+
+  // Ripetizioni del giorno
+  if (dataGiorno) {
+    panoramaRipetizioni.forEach(rip => {
+      if (rip.data !== dataGiorno || !rip.aula) return;
+      const slot = trovaSlotPerOra(fpg.tutte, rip.oraInizio || "15:00");
+      if (slot >= 0) {
+        const key = `${slot}-${rip.aula}`;
+        if (!mappa[key]) mappa[key] = [];
+        mappa[key].push({ ...rip, _tipo: "ripetizione", _slot: slot });
+      }
+    });
+  }
+
+  // Conta slot occupati per aula (per header badge)
+  const countPerAula = {};
+  aule.forEach(a => { countPerAula[a] = 0; });
+  Object.keys(mappa).forEach(key => {
+    const parts = key.split("-");
+    const aula = parts.slice(1).join("-"); // nomi aula con "-"
+    if (countPerAula[aula] !== undefined) countPerAula[aula] += mappa[key].length;
+  });
+
+  // ── HTML ──
+  let html = `<table class="orario-table panorama-table">`;
+
+  // THEAD
+  html += `<thead><tr><th class="col-fascia">Ora</th>`;
+  aule.forEach(aula => {
+    const count = countPerAula[aula] || 0;
+    const badge = count > 0
+      ? `<span class="th-count th-count-busy">${count}</span>`
+      : `<span class="th-count th-count-free">libera</span>`;
+    html += `<th class="col-aula-pan">${escapeHtml(aula)} ${badge}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  const fasceMattina = fpg.mattina || [];
+  const fascePom = fpg.pomeriggio || [];
+
+  // Righe mattina
+  fasceMattina.forEach(fascia => {
+    html += renderRigaPanorama(fascia, aule, mappa, giorno, dataGiorno, "mattina");
+  });
+
+  // Separatore
+  if (fasceMattina.length > 0 && fascePom.length > 0) {
+    html += `<tr class="separator-row"><td colspan="${aule.length + 1}" class="td-separator">
+      <div class="separator-line"><span class="separator-label">☀️ Pomeriggio</span></div>
+    </td></tr>`;
+  }
+
+  // Righe pomeriggio
+  fascePom.forEach(fascia => {
+    html += renderRigaPanorama(fascia, aule, mappa, giorno, dataGiorno, "pomeriggio");
+  });
+
+  html += `</tbody></table>`;
+
+  // Riepilogo
+  const totSlots = (fasceMattina.length + fascePom.length) * aule.length;
+  const totOccupati = Object.keys(mappa).reduce((acc, key) => acc + (mappa[key].length > 0 ? 1 : 0), 0);
+  const totLiberi = totSlots - totOccupati;
+
+  html += `<div class="panorama-summary">
+    <span class="pan-stat">🏫 ${aule.length} aule</span>
+    <span class="pan-stat">📗 ${totLiberi} slot liberi</span>
+    <span class="pan-stat">📕 ${totOccupati} slot occupati</span>
+  </div>`;
+
+  orarioContainer.innerHTML = html;
+}
+
+function renderRigaPanorama(fascia, aule, mappa, giorno, dataGiorno, blocco) {
+  let html = `<tr>`;
+  html += `<td class="td-fascia ${blocco === 'pomeriggio' ? 'td-fascia-pom' : ''}">
+    <span class="fascia-inizio">${fascia.start}</span>
+    <span class="fascia-fine">${fascia.end}</span>
+  </td>`;
+
+  aule.forEach(aula => {
+    const key = `${fascia.slot}-${aula}`;
+    const items = mappa[key] || [];
+
+    if (items.length > 0) {
+      html += `<td class="cella-occupata-multi pan-cell-busy">`;
+      items.forEach(item => {
+        if (item._tipo === "lezione") {
+          html += renderCellaPanoramaItem(item, "lezione");
+        } else {
+          html += renderCellaPanoramaItem(item, "ripetizione");
+        }
+      });
+      html += `</td>`;
+    } else {
+      // Cella libera — cliccabile
+      const aulaEscaped = escapeHtml(aula).replace(/'/g, "\\'");
+      html += `<td class="cella-vuota cella-clickable pan-cell-free" onclick="cellaVuotaPanoramaClick('${giorno}', ${fascia.slot}, '${aulaEscaped}', '${blocco}', '${dataGiorno || ''}')">
+        <span class="cella-free-label">+</span>
+      </td>`;
+    }
+  });
+
+  html += `</tr>`;
+  return html;
+}
+
+function renderCellaPanoramaItem(item, tipo) {
+  const nomeDoc = mappaDocenti[item.docenteId] || "—";
+  const editable = "cella-item-editable";
+
+  if (tipo === "lezione") {
+    const onClick = `onclick="apriModalModificaLezione('${item.id}')"`;
+    let html = `<div class="cella-item cella-lezione ${editable}" ${onClick}><div class="cella-content">`;
+    html += `<span class="cella-materia">${escapeHtml(item.materia)}</span>`;
+    html += `<span class="cella-classe">${escapeHtml(item.classe)}</span>`;
+    html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
+    html += `</div>`;
+    html += `<button class="cella-remove" onclick="event.stopPropagation(); rimuoviLezione('${item.id}')" title="Rimuovi">✕</button>`;
+    html += `</div>`;
+    return html;
+  } else {
+    const durata = Number(item.durata) || 60;
+    const oraFine = minutesToTime(timeToMinutes(item.oraInizio || "15:00") + durata);
+    const onClick = `onclick="apriModalModificaRipetizione('${item.id}')"`;
+    let html = `<div class="cella-item cella-ripetizione ${editable}" ${onClick}><div class="cella-content">`;
+    html += `<span class="cella-materia-rip">${escapeHtml(item.materia)}</span>`;
+    html += `<span class="cella-studente">${escapeHtml(item.studente)}</span>`;
+    html += `<span class="cella-docente-rip">${escapeHtml(nomeDoc)}</span>`;
+    html += `<span class="cella-ora-rip">${item.oraInizio}–${oraFine}</span>`;
+    html += `</div>`;
+    html += `<button class="cella-remove cella-remove-rip" onclick="event.stopPropagation(); rimuoviRipetizione('${item.id}')" title="Rimuovi">✕</button>`;
+    html += `</div>`;
+    return html;
+  }
+}
+
+function cellaVuotaPanoramaClick(giorno, slot, aula, blocco, dataGiorno) {
+  if (!isAdmin) return;
+
+  const overlay = document.getElementById("scelta-overlay");
+  if (overlay) {
+    overlay.dataset.giorno = giorno;
+    overlay.dataset.slot = slot;
+    overlay.dataset.blocco = blocco;
+    overlay.dataset.aula = aula;
+    overlay.dataset.data = dataGiorno;
+    overlay.classList.add("active");
+  }
+}
+
+function cellaVuotaPanoramaClick(giorno, slot, aula, blocco, dataGiorno) {
+  if (!isAdmin) return;
+
+  const overlay = document.getElementById("scelta-overlay");
+  if (overlay) {
+    overlay.dataset.giorno = giorno;
+    overlay.dataset.slot = slot;
+    overlay.dataset.blocco = blocco;
+    overlay.dataset.aula = aula;
+    overlay.dataset.data = dataGiorno;
+    overlay.classList.add("active");
+  }
+}
+
+// ============================================================
+// PANORAMA CALENDARIO (settimana intera, TUTTO visibile)
+// ============================================================
+
+async function caricaPanoramaCal() {
+  orarioContainer.innerHTML = `
+    <div class="orario-loading">
+      <div class="loading-spinner"></div>
+      <p>Caricamento panorama settimanale…</p>
+    </div>
+  `;
+
+  try {
+    // Carica TUTTE le lezioni (senza filtro)
+    const snapLezioni = await db.collection("orarioScolastico").get();
+    panoramaLezioni = [];
+    snapLezioni.forEach(doc => { panoramaLezioni.push({ id: doc.id, ...doc.data() }); });
+
+    // Carica TUTTE le ripetizioni della settimana
+    panoramaRipetizioni = [];
+    if (settimanaDate.length === 5) {
+      const snapRip = await db.collection("ripetizioni")
+        .where("data", ">=", settimanaDate[0])
+        .where("data", "<=", settimanaDate[4])
+        .get();
+      snapRip.forEach(doc => { panoramaRipetizioni.push({ id: doc.id, ...doc.data() }); });
+    }
+
+    renderTabellaPanoramaCal();
+
+  } catch (err) {
+    console.error("Errore caricamento panorama calendario:", err);
+    orarioContainer.innerHTML = `<div class="orario-empty"><div class="empty-icon">⚠️</div><p>Errore nel caricamento. Riprova.</p></div>`;
+  }
+}
+
+function renderTabellaPanoramaCal() {
+  // Trova giorno con più fasce per le etichette
+  let giornoMaxMattina = GIORNI[0];
+  let giornoMaxPomeriggio = GIORNI[0];
+  GIORNI.forEach(g => {
+    if ((fascePerGiorno[g]?.numMattina || 0) > (fascePerGiorno[giornoMaxMattina]?.numMattina || 0)) giornoMaxMattina = g;
+    if ((fascePerGiorno[g]?.numPomeriggio || 0) > (fascePerGiorno[giornoMaxPomeriggio]?.numPomeriggio || 0)) giornoMaxPomeriggio = g;
+  });
+
+  const fasceMattinaEtichette = fascePerGiorno[giornoMaxMattina]?.mattina || [];
+  const fascePomeriggioEtichette = fascePerGiorno[giornoMaxPomeriggio]?.pomeriggio || [];
+
+  // Mappa: "giorno-slot" → [items]
+  const mappa = {};
+
+  // Lezioni
+  panoramaLezioni.forEach(lez => {
+    if (!lez.giorno) return;
+    const key = `${lez.giorno}-${lez.slot}`;
+    if (!mappa[key]) mappa[key] = [];
+    mappa[key].push({ ...lez, _tipo: "lezione" });
+  });
+
+  // Ripetizioni
+  panoramaRipetizioni.forEach(rip => {
+    const giorno = giornoFromData(rip.data);
+    if (!giorno) return;
+    const fasce = fascePerGiorno[giorno]?.tutte || [];
+    const slot = trovaSlotPerOra(fasce, rip.oraInizio || "15:00");
+    if (slot >= 0) {
+      const key = `${giorno}-${slot}`;
+      if (!mappa[key]) mappa[key] = [];
+      mappa[key].push({ ...rip, _tipo: "ripetizione", _giorno: giorno, _slot: slot });
+    }
+  });
+
+  // Conteggi per header
+  const countPerGiorno = {};
+  GIORNI.forEach(g => { countPerGiorno[g] = 0; });
+  Object.keys(mappa).forEach(key => {
+    const giorno = key.split("-")[0];
+    if (countPerGiorno[giorno] !== undefined) countPerGiorno[giorno] += mappa[key].length;
+  });
+
+  // ── HTML tabella ──
+  let html = `<table class="orario-table pancal-table">`;
+
+  // THEAD con date + conteggio
+  html += `<thead><tr><th class="col-fascia">Ora</th>`;
+  GIORNI.forEach((g, idx) => {
+    const dataStr = settimanaDate[idx];
+    const dataObj = dataStr ? new Date(dataStr + "T00:00:00") : null;
+    const numGiorno = dataObj ? dataObj.getDate() : "";
+    const count = countPerGiorno[g] || 0;
+    const badge = count > 0 ? `<span class="pancal-slot-count pancal-slot-count-busy">${count}</span>` : "";
+    html += `<th>${g.substring(0, 3)} ${numGiorno} ${badge}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  // Righe mattina
+  for (let i = 0; i < maxFasceMattina; i++) {
+    html += renderRigaPanoramaCal(i, "mattina", fasceMattinaEtichette[i], mappa);
+  }
+
+  // Separatore
+  if (maxFasceMattina > 0 && maxFascePomeriggio > 0) {
+    html += `<tr class="separator-row"><td colspan="${GIORNI.length + 1}" class="td-separator">
+      <div class="separator-line"><span class="separator-label">☀️ Pomeriggio</span></div>
+    </td></tr>`;
+  }
+
+  // Righe pomeriggio
+  for (let i = 0; i < maxFascePomeriggio; i++) {
+    const slotGlobale = maxFasceMattina + i;
+    html += renderRigaPanoramaCal(slotGlobale, "pomeriggio", fascePomeriggioEtichette[i], mappa);
+  }
+
+  html += `</tbody></table>`;
+
+  // Riepilogo
+  const totItems = panoramaLezioni.length + panoramaRipetizioni.length;
+  html += `<div class="panorama-summary">
+    <span class="pan-stat">📘 ${panoramaLezioni.length} lezioni</span>
+    <span class="pan-stat">📙 ${panoramaRipetizioni.length} ripetizioni</span>
+    <span class="pan-stat">📊 ${totItems} totale attività</span>
+  </div>`;
+
+  orarioContainer.innerHTML = html;
+}
+
+function renderRigaPanoramaCal(slotGlobale, blocco, fasciaEtichetta, mappa) {
+  let html = `<tr>`;
+
+  // Colonna fascia oraria
+  if (fasciaEtichetta) {
+    html += `<td class="td-fascia ${blocco === 'pomeriggio' ? 'td-fascia-pom' : ''}">
+      <span class="fascia-inizio">${fasciaEtichetta.start}</span>
+      <span class="fascia-fine">${fasciaEtichetta.end}</span>
+    </td>`;
+  } else {
+    html += `<td class="td-fascia">—</td>`;
+  }
+
+  // Colonne giorni
+  GIORNI.forEach(giorno => {
+    const fpg = fascePerGiorno[giorno];
+    const numMattina = fpg?.numMattina || 0;
+    const numPomeriggio = fpg?.numPomeriggio || 0;
+
+    let slotValido = false;
+    if (blocco === "mattina") slotValido = slotGlobale < numMattina;
+    else slotValido = (slotGlobale - maxFasceMattina) < numPomeriggio;
+
+    if (!slotValido) { html += `<td class="cella-disabled"></td>`; return; }
+
+    let realSlot = slotGlobale;
+    if (blocco === "pomeriggio") {
+      const pomIdx = slotGlobale - maxFasceMattina;
+      realSlot = numMattina + pomIdx;
+    }
+
+    const key = `${giorno}-${realSlot}`;
+    const items = mappa[key] || [];
+
+    if (items.length > 0) {
+      const MAX_VISIBLE = 4;
+      html += `<td class="cella-occupata-multi"><div class="pancal-cell">`;
+
+      const visibili = items.slice(0, MAX_VISIBLE);
+      const restanti = items.length - MAX_VISIBLE;
+
+      visibili.forEach(item => {
+        html += renderItemPanoramaCal(item);
+      });
+
+      if (restanti > 0) {
+        html += `<div class="pancal-more">+${restanti} altr${restanti === 1 ? "o" : "i"}</div>`;
+      }
+
+      html += `</div></td>`;
+    } else {
+      // Cella vuota — cliccabile
+      html += `<td class="cella-vuota cella-clickable" onclick="cellaVuotaClick('${giorno}', ${realSlot}, '${blocco}')">
+        <span class="cella-add-hint">+</span>
+      </td>`;
+    }
+  });
+
+  html += `</tr>`;
+  return html;
+}
+
+function renderItemPanoramaCal(item) {
+  const nomeDoc = mappaDocenti[item.docenteId] || "—";
+  const tipo = item._tipo;
+
+  const cssClass = tipo === "lezione" ? "pancal-item-lez" : "pancal-item-rip";
+  const onClick = tipo === "lezione"
+    ? `onclick="apriModalModificaLezione('${item.id}')"`
+    : `onclick="apriModalModificaRipetizione('${item.id}')"`;
+
+  let detail = "";
+  if (tipo === "lezione") {
+    detail = `${escapeHtml(nomeDoc)} · ${escapeHtml(item.classe || "")}`;
+  } else {
+    detail = `${escapeHtml(item.studente || "")} · ${escapeHtml(nomeDoc)}`;
+  }
+
+  const aulaTag = item.aula ? `<span class="pancal-item-aula">${escapeHtml(item.aula)}</span>` : "";
+
+  let html = `<div class="pancal-item ${cssClass}" ${onClick}>`;
+  html += `<div class="pancal-item-content">`;
+  html += `<div class="pancal-item-materia">${escapeHtml(item.materia)}</div>`;
+  html += `<div class="pancal-item-detail">${detail}</div>`;
+  html += `</div>`;
+  html += aulaTag;
+  html += `</div>`;
+  return html;
 }
 
 // ============================================================
@@ -974,7 +1485,8 @@ function renderCellaRipetizione(rip, giorno, slot) {
 // ============================================================
 
 function cellaVuotaClick(giorno, slot, blocco) {
-  if (!isAdmin || !entitaSelezionata) return;
+  if (!isAdmin) return;
+  if (!entitaSelezionata && vistaCorrente !== "panorama" && vistaCorrente !== "panorama_cal") return;
 
   // Pre-seleziona giorno e slot nel modal
   if (vistaCorrente === "docente") currentDocenteId = entitaSelezionata;
@@ -995,9 +1507,11 @@ function apriSceltaTipo(giorno, slot, blocco) {
   }
 
   // Salva contesto per passarlo al modal successivo
-  overlay.dataset.giorno = giorno || "";
-  overlay.dataset.slot = slot != null ? slot : "";
-  overlay.dataset.blocco = blocco || "";
+  // Non sovrascrivere se già settato da panorama click
+  if (giorno !== undefined) overlay.dataset.giorno = giorno || "";
+  if (slot !== undefined) overlay.dataset.slot = slot != null ? slot : "";
+  if (blocco !== undefined) overlay.dataset.blocco = blocco || "";
+  // aula e data vengono settati direttamente da cellaVuotaPanoramaClick
 
   overlay.classList.add("active");
 }
@@ -1006,9 +1520,10 @@ function sceltaLezione() {
   const overlay = document.getElementById("scelta-overlay");
   const giorno = overlay?.dataset.giorno || "";
   const slot = overlay?.dataset.slot !== "" ? parseInt(overlay.dataset.slot) : null;
+  const aula = overlay?.dataset.aula || "";
 
   chiudiScelta();
-  apriModalLezione("add", null, giorno, slot);
+  apriModalLezione("add", null, giorno, slot, aula);
 }
 
 function sceltaRipetizione() {
@@ -1016,14 +1531,23 @@ function sceltaRipetizione() {
   const giorno = overlay?.dataset.giorno || "";
   const slot = overlay?.dataset.slot !== "" ? parseInt(overlay.dataset.slot) : null;
   const blocco = overlay?.dataset.blocco || "";
+  const aula = overlay?.dataset.aula || "";
+  const data = overlay?.dataset.data || "";
 
   chiudiScelta();
-  apriModalRipetizione("add", null, giorno, slot, blocco);
+  apriModalRipetizione("add", null, giorno, slot, blocco, aula, data);
 }
 
 function chiudiScelta() {
   const overlay = document.getElementById("scelta-overlay");
-  if (overlay) overlay.classList.remove("active");
+  if (overlay) {
+    overlay.classList.remove("active");
+    overlay.dataset.giorno = "";
+    overlay.dataset.slot = "";
+    overlay.dataset.blocco = "";
+    overlay.dataset.aula = "";
+    overlay.dataset.data = "";
+  }
 }
 
 document.addEventListener("click", (e) => {
@@ -1080,6 +1604,17 @@ function setupModal() {
     });
   }
 
+  // Popola docente nel modal lezione (per panorama)
+  const selectDocLez = document.getElementById("modal-lez-docente");
+  if (selectDocLez) {
+    docentiLista.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = `${d.cognome} ${d.nome}`;
+      selectDocLez.appendChild(opt);
+    });
+  }
+
   if (btnSaveLez) btnSaveLez.addEventListener("click", salvaLezione);
 
   // ── Modal Ripetizione ──
@@ -1130,13 +1665,19 @@ function setupModal() {
 // MODAL LEZIONE: Apri / Chiudi / Fasce
 // ============================================================
 
-function apriModalLezione(mode, lezione, giorno, slot) {
+function apriModalLezione(mode, lezione, giorno, slot, aula) {
   modalMode = mode;
   modalTipo = "lezione";
   editingLezioneId = lezione ? lezione.id : null;
 
   const titleEl = document.getElementById("modal-title");
   const btnSave = document.getElementById("modal-save");
+  const docenteGroup = document.getElementById("modal-docente-group");
+
+  // Mostra/nascondi dropdown docente: visibile solo in panorama
+  if (docenteGroup) {
+    docenteGroup.style.display = (isPanoramaView()) ? "" : "none";
+  }
 
   if (mode === "edit" && lezione) {
     titleEl.textContent = "Modifica Lezione";
@@ -1148,6 +1689,13 @@ function apriModalLezione(mode, lezione, giorno, slot) {
     document.getElementById("modal-materia").value = lezione.materia || "";
     document.getElementById("modal-classe").value = lezione.classe || "";
     document.getElementById("modal-aula").value = lezione.aula || "";
+
+    // In panorama modifica, preseleziona il docente della lezione
+    if (isPanoramaView()) {
+      currentDocenteId = lezione.docenteId;
+      const selDoc = document.getElementById("modal-lez-docente");
+      if (selDoc) selDoc.value = lezione.docenteId || "";
+    }
   } else {
     titleEl.textContent = "Aggiungi Lezione";
     btnSave.textContent = "Salva Lezione";
@@ -1162,7 +1710,13 @@ function apriModalLezione(mode, lezione, giorno, slot) {
     }
     document.getElementById("modal-materia").value = "";
     document.getElementById("modal-classe").value = "";
-    document.getElementById("modal-aula").value = "";
+    document.getElementById("modal-aula").value = aula || "";
+
+    // In panorama, resetta docente
+    if (isPanoramaView()) {
+      const selDoc = document.getElementById("modal-lez-docente");
+      if (selDoc) selDoc.value = "";
+    }
   }
 
   nascondiErroreModal();
@@ -1170,7 +1724,8 @@ function apriModalLezione(mode, lezione, giorno, slot) {
 }
 
 function apriModalModificaLezione(lezioneId) {
-  const lezione = lezioniCorrente.find(l => l.id === lezioneId);
+  let lezione = lezioniCorrente.find(l => l.id === lezioneId);
+  if (!lezione) lezione = panoramaLezioni.find(l => l.id === lezioneId);
   if (!lezione) return;
   apriModalLezione("edit", lezione);
 }
@@ -1240,7 +1795,7 @@ function nascondiErroreModal() {
 // MODAL RIPETIZIONE: Apri / Chiudi
 // ============================================================
 
-function apriModalRipetizione(mode, ripetizione, giorno, slot, blocco) {
+function apriModalRipetizione(mode, ripetizione, giorno, slot, blocco, aula, data) {
   modalMode = mode;
   modalTipo = "ripetizione";
   editingRipetizioneId = ripetizione ? ripetizione.id : null;
@@ -1276,8 +1831,10 @@ function apriModalRipetizione(mode, ripetizione, giorno, slot, blocco) {
       selectDoc.value = "";
     }
 
-    // Pre-seleziona data dal giorno cliccato
-    if (giorno && settimanaDate.length === 5) {
+    // Pre-seleziona data: da parametro panorama, oppure dal giorno+settimana
+    if (data) {
+      document.getElementById("modal-rip-data").value = data;
+    } else if (giorno && settimanaDate.length === 5) {
       const idxGiorno = GIORNI.indexOf(giorno);
       if (idxGiorno >= 0) {
         document.getElementById("modal-rip-data").value = settimanaDate[idxGiorno];
@@ -1297,8 +1854,10 @@ function apriModalRipetizione(mode, ripetizione, giorno, slot, blocco) {
       document.getElementById("modal-rip-ora").value = "";
     }
 
-    // Pre-seleziona aula se in vista aula
-    if (vistaCorrente === "aula" && entitaSelezionata) {
+    // Pre-seleziona aula: da parametro, oppure dalla vista aula
+    if (aula) {
+      document.getElementById("modal-rip-aula").value = aula;
+    } else if (vistaCorrente === "aula" && entitaSelezionata) {
       document.getElementById("modal-rip-aula").value = entitaSelezionata;
     } else {
       document.getElementById("modal-rip-aula").value = "";
@@ -1315,7 +1874,8 @@ function apriModalRipetizione(mode, ripetizione, giorno, slot, blocco) {
 }
 
 function apriModalModificaRipetizione(ripId) {
-  const rip = ripetizioniCorrente.find(r => r.id === ripId);
+  let rip = ripetizioniCorrente.find(r => r.id === ripId);
+  if (!rip) rip = panoramaRipetizioni.find(r => r.id === ripId);
   if (!rip) return;
   apriModalRipetizione("edit", rip);
 }
@@ -1331,7 +1891,8 @@ function chiudiModalRipetizione() {
 // ============================================================
 
 function apriDettaglioRipetizione(ripId) {
-  const rip = ripetizioniCorrente.find(r => r.id === ripId);
+  let rip = ripetizioniCorrente.find(r => r.id === ripId);
+  if (!rip) rip = panoramaRipetizioni.find(r => r.id === ripId);
   if (!rip) return;
 
   const nomeDocente = mappaDocenti[rip.docenteId] || "—";
@@ -1385,12 +1946,20 @@ async function salvaLezione() {
   if (!classe) { mostraErroreModal("Seleziona una classe."); return; }
   if (!aula) { mostraErroreModal("Seleziona un'aula."); return; }
 
+  // In panorama, prendi docente dal dropdown nel modal
+  let docenteIdDaSalvare = currentDocenteId;
+  if (isPanoramaView()) {
+    const selDoc = document.getElementById("modal-lez-docente");
+    docenteIdDaSalvare = selDoc ? selDoc.value : "";
+    if (!docenteIdDaSalvare) { mostraErroreModal("Seleziona un docente."); return; }
+  }
+
   const slot = parseInt(slotStr);
 
   const slotOccupato = lezioniCorrente.some(l =>
     l.giorno === giorno && l.slot === slot && l.id !== editingLezioneId
   );
-  if (slotOccupato) {
+  if (slotOccupato && vistaCorrente !== "panorama") {
     mostraErroreModal("Questo slot è già occupato per il docente selezionato.");
     return;
   }
@@ -1426,7 +1995,7 @@ async function salvaLezione() {
     btnSave.textContent = "Salvataggio…";
 
     const datiLezione = {
-      docenteId: currentDocenteId,
+      docenteId: docenteIdDaSalvare,
       giorno: giorno,
       slot: slot,
       materia: materia,
@@ -1441,8 +2010,12 @@ async function salvaLezione() {
     }
 
     chiudiModalLezione();
-    await caricaEmostraOrario();
-    aggiornaBottoneStudenti();
+    if (isPanoramaView()) {
+      await ricaricaPanoramaCorrente();
+    } else {
+      await caricaEmostraOrario();
+      aggiornaBottoneStudenti();
+    }
 
   } catch (err) {
     console.error("Errore salvataggio lezione:", err);
@@ -1507,8 +2080,12 @@ async function salvaRipetizione() {
     }
 
     chiudiModalRipetizione();
-    await caricaEmostraOrario();
-    aggiornaBottoneStudenti();
+    if (isPanoramaView()) {
+      await ricaricaPanoramaCorrente();
+    } else {
+      await caricaEmostraOrario();
+      aggiornaBottoneStudenti();
+    }
 
   } catch (err) {
     console.error("Errore salvataggio ripetizione:", err);
@@ -1528,8 +2105,12 @@ async function rimuoviLezione(lezioneId) {
 
   try {
     await db.collection("orarioScolastico").doc(lezioneId).delete();
-    await caricaEmostraOrario();
-    aggiornaBottoneStudenti();
+    if (isPanoramaView()) {
+      await ricaricaPanoramaCorrente();
+    } else {
+      await caricaEmostraOrario();
+      aggiornaBottoneStudenti();
+    }
   } catch (err) {
     console.error("Errore rimozione lezione:", err);
     alert("Errore durante la rimozione. Riprova.");
@@ -1541,8 +2122,12 @@ async function rimuoviRipetizione(ripId) {
 
   try {
     await db.collection("ripetizioni").doc(ripId).delete();
-    await caricaEmostraOrario();
-    aggiornaBottoneStudenti();
+    if (isPanoramaView()) {
+      await ricaricaPanoramaCorrente();
+    } else {
+      await caricaEmostraOrario();
+      aggiornaBottoneStudenti();
+    }
   } catch (err) {
     console.error("Errore rimozione ripetizione:", err);
     alert("Errore durante la rimozione. Riprova.");
@@ -1569,6 +2154,8 @@ function mostraEmptyPerVista() {
     mostraEmpty("Seleziona un'aula per visualizzare le lezioni e ripetizioni assegnate.");
   } else if (vistaCorrente === "classe") {
     mostraEmpty("Seleziona una classe per visualizzare l'orario.");
+  } else if (isPanoramaView()) {
+    // Panorama non usa empty — carica direttamente
   }
 }
 
@@ -1577,6 +2164,17 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+/** Verifica se siamo in una delle viste panoramiche */
+function isPanoramaView() {
+  return vistaCorrente === "panorama" || vistaCorrente === "panorama_cal";
+}
+
+/** Ricarica la vista panoramica corrente */
+async function ricaricaPanoramaCorrente() {
+  if (vistaCorrente === "panorama") await caricaPanorama();
+  else if (vistaCorrente === "panorama_cal") await caricaPanoramaCal();
 }
 
 // ============================================================
