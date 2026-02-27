@@ -10,823 +10,138 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="data:,">
     <style>
-        /* ═══════════════════════════════════════════
-           IMPOSTAZIONI — STILI SPECIFICI
-           ═══════════════════════════════════════════ */
-
-        /* ── PANNELLO GENERICO ── */
-        .pannello {
-            margin-bottom: 40px;
-        }
-
-        .pannello-titolo {
-            font-family: 'Lora', serif;
-            font-size: 22px;
-            font-weight: 700;
-            color: #1B4332;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .pannello-titolo .icon {
-            font-size: 24px;
-        }
-
-        /* ═══════════════════════════════════════════
-           PANNELLO 1 — ORARI SCUOLA
-           ═══════════════════════════════════════════ */
-        .orari-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .giorno-card {
-            background: #FFFFFF;
-            border: 1px solid #DDD9D0;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .giorno-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 24px;
-            background: #F9F8F5;
-            border-bottom: 1px solid #EBE8E2;
-        }
-
-        .giorno-card-title {
-            font-family: 'Lora', serif;
-            font-size: 18px;
-            font-weight: 700;
-            color: #1B4332;
-        }
-
-        .giorno-card-body {
-            padding: 20px 24px 24px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-
-        /* Sezione Mattina */
-        .sezione-mattina {
-            background: #E3F2FD;
-            border: 1px solid rgba(21, 101, 192, 0.2);
-            border-radius: 10px;
-            padding: 20px;
-        }
-
-        .sezione-mattina-titolo {
-            font-family: 'Lora', serif;
-            font-size: 15px;
-            font-weight: 700;
-            color: #0D47A1;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* Sezione Pomeriggio */
-        .sezione-pomeriggio {
-            background: #FFF3E0;
-            border: 1px solid rgba(230, 81, 0, 0.2);
-            border-radius: 10px;
-            padding: 20px;
-        }
-
-        .sezione-pomeriggio-titolo {
-            font-family: 'Lora', serif;
-            font-size: 15px;
-            font-weight: 700;
-            color: #BF360C;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* Campi input dentro le sezioni */
-        .campo-orario {
-            margin-bottom: 14px;
-        }
-
-        .campo-orario:last-child {
-            margin-bottom: 0;
-        }
-
-        .campo-orario label {
-            display: block;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 5px;
-        }
-
-        .campo-orario input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1.5px solid #CCC;
-            border-radius: 8px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #333;
-            background: #FFFFFF;
-            outline: none;
-            transition: border-color 0.2s ease;
-        }
-
-        .campo-orario input:focus {
-            border-color: #1B4332;
-            box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.1);
-        }
-
-        /* Anteprima fasce */
-        .anteprima-fasce {
-            margin-top: 14px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.7);
-            border-radius: 8px;
-            border: 1px dashed rgba(21, 101, 192, 0.3);
-        }
-
-        .anteprima-fasce-label {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 11.5px;
-            font-weight: 600;
-            color: #1565C0;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin-bottom: 6px;
-        }
-
-        .anteprima-fasce-text {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            color: #0D47A1;
-            line-height: 1.6;
-            word-break: break-word;
-        }
-
-        .anteprima-pomeriggio {
-            margin-top: 14px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.7);
-            border-radius: 8px;
-            border: 1px dashed rgba(230, 81, 0, 0.3);
-        }
-
-        .anteprima-pomeriggio-text {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            color: #BF360C;
-            line-height: 1.5;
-        }
-
-        /* Bottone salva giorno */
-        .giorno-card-footer {
-            padding: 12px 24px 16px;
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .btn-salva-giorno {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 9px 22px;
-            background: #1B4332;
-            color: #FFFFFF;
-            border: none;
-            border-radius: 8px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-
-        .btn-salva-giorno:hover {
-            background: #245A3F;
-        }
-
-        .btn-salva-giorno:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-salva-giorno.salvato {
-            background: #2E7D32;
-        }
-
-        /* ═══════════════════════════════════════════
-           PANNELLO 2 — TARIFFARIO DOCENTI
-           ═══════════════════════════════════════════ */
-        .tariffe-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            gap: 20px;
-        }
-
-        .tariffa-card {
-            background: #FFFFFF;
-            border: 1px solid #DDD9D0;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: box-shadow 0.2s ease;
-        }
-
-        .tariffa-card:hover {
-            box-shadow: 0 4px 16px rgba(27, 67, 50, 0.08);
-        }
-
-        .tariffa-card-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 20px 24px;
-            border-bottom: 1px solid #F0EDEA;
-        }
-
-        .tariffa-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: #1B4332;
-            color: #FFFFFF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Lora', serif;
-            font-size: 16px;
-            font-weight: 700;
-            flex-shrink: 0;
-        }
-
-        .tariffa-info {
-            flex: 1;
-        }
-
-        .tariffa-nome {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 17px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .tariffa-materie {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 4px;
-        }
-
-        .tariffa-materie .badge-materia {
-            background: #FEFAE0;
-            color: #BC6C25;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 6px;
-            border: 1px solid rgba(188, 108, 37, 0.2);
-        }
-
-        .tariffa-card-body {
-            padding: 20px 24px;
-        }
-
-        .tariffa-boxes {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 16px;
-        }
-
-        .tariffa-box {
-            border-radius: 10px;
-            padding: 16px;
-            text-align: center;
-        }
-
-        .tariffa-box-lezione {
-            background: #E3F2FD;
-            border: 1px solid rgba(21, 101, 192, 0.2);
-        }
-
-        .tariffa-box-ripetizione {
-            background: #FFF3E0;
-            border: 1px solid rgba(230, 81, 0, 0.2);
-        }
-
-        .tariffa-box-label {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 11.5px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin-bottom: 8px;
-        }
-
-        .tariffa-box-lezione .tariffa-box-label { color: #1565C0; }
-        .tariffa-box-ripetizione .tariffa-box-label { color: #E65100; }
-
-        .tariffa-box-valore {
-            font-family: 'Lora', serif;
-            font-size: 28px;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        .tariffa-box-lezione .tariffa-box-valore { color: #0D47A1; }
-        .tariffa-box-ripetizione .tariffa-box-valore { color: #BF360C; }
-
-        .tariffa-box-unita {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 12px;
-            color: #888;
-            margin-top: 4px;
-        }
-
-        /* Input tariffa (edit mode) */
-        .tariffa-box-input {
-            width: 100px;
-            padding: 6px 10px;
-            border: 2px solid #1B4332;
-            border-radius: 8px;
-            font-family: 'Lora', serif;
-            font-size: 26px;
-            font-weight: 700;
-            text-align: center;
-            outline: none;
-            background: #FFFFFF;
-        }
-
-        .tariffa-box-lezione .tariffa-box-input { color: #0D47A1; }
-        .tariffa-box-ripetizione .tariffa-box-input { color: #BF360C; }
-
-        /* Note tariffa */
-        .tariffa-note {
-            margin-bottom: 16px;
-        }
-
-        .tariffa-note-label {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            color: #777;
-            margin-bottom: 4px;
-        }
-
-        .tariffa-note-text {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #555;
-            font-style: italic;
-            min-height: 20px;
-        }
-
-        .tariffa-note-text.vuota {
-            color: #BBB;
-        }
-
-        .tariffa-note-input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1.5px solid #CCC;
-            border-radius: 8px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #333;
-            outline: none;
-            resize: vertical;
-            min-height: 60px;
-        }
-
-        .tariffa-note-input:focus {
-            border-color: #1B4332;
-        }
-
-        .tariffa-card-footer {
-            padding: 0 24px 20px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-        }
-
-        .btn-modifica-tariffa,
-        .btn-salva-tariffa,
-        .btn-annulla-tariffa {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 18px;
-            border: none;
-            border-radius: 8px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13.5px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-modifica-tariffa {
-            background: #EFEDE8;
-            color: #555;
-            border: 1px solid #DDD9D0;
-        }
-
-        .btn-modifica-tariffa:hover {
-            background: #E5E2DC;
-        }
-
-        .btn-salva-tariffa {
-            background: #1B4332;
-            color: #FFFFFF;
-        }
-
-        .btn-salva-tariffa:hover {
-            background: #245A3F;
-        }
-
-        .btn-annulla-tariffa {
-            background: #EFEDE8;
-            color: #555;
-            border: 1px solid #DDD9D0;
-        }
-
-        .btn-annulla-tariffa:hover {
-            background: #E5E2DC;
-        }
-
-        /* ═══════════════════════════════════════════
-           PANNELLO 3 — CREDENZIALI DOCENTI
-           ═══════════════════════════════════════════ */
-        .credenziali-card {
-            background: #FFFFFF;
-            border: 1px solid #DDD9D0;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .credenziali-header {
-            padding: 16px 24px;
-            background: #F9F8F5;
-            border-bottom: 1px solid #EBE8E2;
-            display: grid;
-            grid-template-columns: 200px 1fr 1fr 140px;
-            gap: 16px;
-            align-items: center;
-        }
-
-        .credenziali-header span {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-        }
-
-        .credenziali-riga {
-            display: grid;
-            grid-template-columns: 200px 1fr 1fr 140px;
-            gap: 16px;
-            align-items: center;
-            padding: 14px 24px;
-            border-bottom: 1px solid #F5F3EF;
-            transition: background 0.15s ease;
-        }
-
-        .credenziali-riga:last-child {
-            border-bottom: none;
-        }
-
-        .credenziali-riga:hover {
-            background: rgba(27, 67, 50, 0.015);
-        }
-
-        .credenziali-docente {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .credenziali-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #1B4332;
-            color: #FFFFFF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Lora', serif;
-            font-size: 13px;
-            font-weight: 700;
-            flex-shrink: 0;
-        }
-
-        .credenziali-nome {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .credenziali-campo {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #555;
-        }
-
-        .credenziali-password {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .credenziali-password-text {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #555;
-        }
-
-        .btn-toggle-password {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: #999;
-            padding: 2px;
-            transition: color 0.2s ease;
-        }
-
-        .btn-toggle-password:hover {
-            color: #555;
-        }
-
-        .credenziali-azioni {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-        }
-
-        .credenziali-input {
-            width: 100%;
-            padding: 7px 10px;
-            border: 1.5px solid #CCC;
-            border-radius: 6px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #333;
-            outline: none;
-        }
-
-        .credenziali-input:focus {
-            border-color: #1B4332;
-            box-shadow: 0 0 0 2px rgba(27, 67, 50, 0.1);
-        }
-
-        .btn-cred {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 6px 14px;
-            border: none;
-            border-radius: 6px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-cred-modifica {
-            background: #EFEDE8;
-            color: #555;
-            border: 1px solid #DDD9D0;
-        }
-
-        .btn-cred-modifica:hover { background: #E5E2DC; }
-
-        .btn-cred-salva {
-            background: #1B4332;
-            color: #FFFFFF;
-        }
-
-        .btn-cred-salva:hover { background: #245A3F; }
-
-        .btn-cred-annulla {
-            background: #EFEDE8;
-            color: #555;
-            border: 1px solid #DDD9D0;
-        }
-
-        .btn-cred-annulla:hover { background: #E5E2DC; }
-
-        /* ═══════════════════════════════════════════
-           FEEDBACK (toast)
-           ═══════════════════════════════════════════ */
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            padding: 14px 24px;
-            border-radius: 10px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            color: #FFFFFF;
-            box-shadow: 0 6px 24px rgba(0,0,0,0.15);
-            z-index: 3000;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s ease;
-            pointer-events: none;
-        }
-
-        .toast.visibile {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .toast-successo { background: #2E7D32; }
-        .toast-errore { background: #C62828; }
-
-        /* ═══════════════════════════════════════════
-           EMPTY STATE
-           ═══════════════════════════════════════════ */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #AAA;
-        }
-
-        .empty-state .empty-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-            opacity: 0.5;
-        }
-
-        .empty-state p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 15px;
-            color: #999;
-        }
-
-        /* ═══════════════════════════════════════════
-           LOADING SKELETON
-           ═══════════════════════════════════════════ */
-        .skeleton {
-            background: linear-gradient(90deg, #F0EDEA 25%, #E8E5E0 50%, #F0EDEA 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 6px;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* ═══════════════════════════════════════════
-           SEPARATORE TRA PANNELLI
-           ═══════════════════════════════════════════ */
-        .separatore {
-            border: none;
-            border-top: 2px solid #EBE8E2;
-            margin: 16px 0;
-        }
-
-        /* ═══════════════════════════════════════════
-           RESPONSIVE
-           ═══════════════════════════════════════════ */
-        @media (max-width: 900px) {
-            .giorno-card-body {
-                grid-template-columns: 1fr;
-            }
-
-            .tariffe-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .credenziali-header,
-            .credenziali-riga {
-                grid-template-columns: 1fr;
-                gap: 8px;
-            }
-
-            .credenziali-header span:first-child {
-                display: block;
-            }
-
-            .credenziali-header span:not(:first-child) {
-                display: none;
-            }
-
-            .credenziali-riga {
-                padding: 16px 20px;
-            }
-
-            .credenziali-docente {
-                margin-bottom: 4px;
-            }
-
-            .credenziali-campo {
-                padding-left: 46px;
-            }
-
-            .credenziali-password {
-                padding-left: 46px;
-            }
-
-            .credenziali-azioni {
-                padding-left: 46px;
-                justify-content: flex-start;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .tariffa-boxes {
-                grid-template-columns: 1fr;
-            }
-        }
+        .pannello{margin-bottom:40px}
+        .pannello-titolo{font-family:'Lora',serif;font-size:22px;font-weight:700;color:#1B4332;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+        .pannello-titolo .icon{font-size:24px}
+        .orari-grid{display:flex;flex-direction:column;gap:20px}
+        .giorno-card{background:#FFFFFF;border:1px solid #DDD9D0;border-radius:12px;overflow:hidden}
+        .giorno-card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#F9F8F5;border-bottom:1px solid #EBE8E2}
+        .giorno-card-title{font-family:'Lora',serif;font-size:18px;font-weight:700;color:#1B4332}
+        .giorno-card-body{padding:20px 24px 24px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+        .sezione-mattina{background:#E3F2FD;border:1px solid rgba(21,101,192,.2);border-radius:10px;padding:20px}
+        .sezione-mattina-titolo{font-family:'Lora',serif;font-size:15px;font-weight:700;color:#0D47A1;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .sezione-pomeriggio{background:#FFF3E0;border:1px solid rgba(230,81,0,.2);border-radius:10px;padding:20px}
+        .sezione-pomeriggio-titolo{font-family:'Lora',serif;font-size:15px;font-weight:700;color:#BF360C;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        /* Badge blocco */
+        .blocco-badge{font-family:'Source Sans 3',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;background:rgba(21,101,192,.12);color:#1565C0;padding:2px 8px;border-radius:4px;margin-left:4px}
+        .blocco-badge.pom{background:rgba(230,81,0,.12);color:#E65100}
+        .campo-orario{margin-bottom:14px}
+        .campo-orario:last-child{margin-bottom:0}
+        .campo-orario label{display:block;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;color:#555;margin-bottom:5px}
+        .campo-orario input{width:100%;padding:8px 12px;border:1.5px solid #CCC;border-radius:8px;font-family:'Source Sans 3',sans-serif;font-size:14px;color:#333;background:#FFFFFF;outline:none;transition:border-color .2s ease}
+        .campo-orario input:focus{border-color:#1B4332;box-shadow:0 0 0 3px rgba(27,67,50,.1)}
+        .anteprima-fasce{margin-top:14px;padding:10px 12px;background:rgba(255,255,255,.7);border-radius:8px;border:1px dashed rgba(21,101,192,.3)}
+        .anteprima-fasce-label{font-family:'Source Sans 3',sans-serif;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;color:#1565C0}
+        .anteprima-fasce-text{font-family:'Source Sans 3',sans-serif;font-size:13px;color:#0D47A1;line-height:1.6;word-break:break-word}
+        .anteprima-pomeriggio{margin-top:14px;padding:10px 12px;background:rgba(255,255,255,.7);border-radius:8px;border:1px dashed rgba(230,81,0,.3)}
+        .anteprima-pomeriggio-text{font-family:'Source Sans 3',sans-serif;font-size:13px;color:#BF360C;line-height:1.5}
+        .giorno-card-footer{padding:12px 24px 16px;display:flex;justify-content:flex-end}
+        .btn-salva-giorno{display:inline-flex;align-items:center;gap:6px;padding:9px 22px;background:#1B4332;color:#FFFFFF;border:none;border-radius:8px;font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s ease}
+        .btn-salva-giorno:hover{background:#245A3F}
+        .btn-salva-giorno:disabled{opacity:.5;cursor:not-allowed}
+        .btn-salva-giorno.salvato{background:#2E7D32}
+        .tariffe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px}
+        .tariffa-card{background:#FFFFFF;border:1px solid #DDD9D0;border-radius:12px;overflow:hidden;transition:box-shadow .2s ease}
+        .tariffa-card:hover{box-shadow:0 4px 16px rgba(27,67,50,.08)}
+        .tariffa-card-header{display:flex;align-items:center;gap:14px;padding:20px 24px;border-bottom:1px solid #F0EDEA}
+        .tariffa-avatar{width:48px;height:48px;border-radius:50%;background:#1B4332;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-family:'Lora',serif;font-size:16px;font-weight:700;flex-shrink:0}
+        .tariffa-info{flex:1}
+        .tariffa-nome{font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:#333}
+        .tariffa-materie{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+        .tariffa-materie .badge-materia{background:#FEFAE0;color:#BC6C25;font-family:'Source Sans 3',sans-serif;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;border:1px solid rgba(188,108,37,.2)}
+        .tariffa-card-body{padding:20px 24px}
+        .tariffa-boxes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+        .tariffa-box{border-radius:10px;padding:16px;text-align:center}
+        .tariffa-box-lezione{background:#E3F2FD;border:1px solid rgba(21,101,192,.2)}
+        .tariffa-box-ripetizione{background:#FFF3E0;border:1px solid rgba(230,81,0,.2)}
+        .tariffa-box-label{font-family:'Source Sans 3',sans-serif;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+        .tariffa-box-lezione .tariffa-box-label{color:#1565C0}
+        .tariffa-box-ripetizione .tariffa-box-label{color:#E65100}
+        .tariffa-box-valore{font-family:'Lora',serif;font-size:28px;font-weight:700;line-height:1}
+        .tariffa-box-lezione .tariffa-box-valore{color:#0D47A1}
+        .tariffa-box-ripetizione .tariffa-box-valore{color:#BF360C}
+        .tariffa-box-unita{font-family:'Source Sans 3',sans-serif;font-size:12px;color:#888;margin-top:4px}
+        .tariffa-box-input{width:100px;padding:6px 10px;border:2px solid #1B4332;border-radius:8px;font-family:'Lora',serif;font-size:26px;font-weight:700;text-align:center;outline:none;background:#FFFFFF}
+        .tariffa-box-lezione .tariffa-box-input{color:#0D47A1}
+        .tariffa-box-ripetizione .tariffa-box-input{color:#BF360C}
+        .tariffa-note{margin-bottom:16px}
+        .tariffa-note-label{font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;color:#777;margin-bottom:4px}
+        .tariffa-note-text{font-family:'Source Sans 3',sans-serif;font-size:14px;color:#555;font-style:italic;min-height:20px}
+        .tariffa-note-text.vuota{color:#BBB}
+        .tariffa-note-input{width:100%;padding:8px 12px;border:1.5px solid #CCC;border-radius:8px;font-family:'Source Sans 3',sans-serif;font-size:14px;color:#333;outline:none;resize:vertical;min-height:60px}
+        .tariffa-note-input:focus{border-color:#1B4332}
+        .tariffa-card-footer{padding:0 24px 20px;display:flex;justify-content:flex-end;gap:8px}
+        .btn-modifica-tariffa,.btn-salva-tariffa,.btn-annulla-tariffa{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border:none;border-radius:8px;font-family:'Source Sans 3',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .2s ease}
+        .btn-modifica-tariffa{background:#EFEDE8;color:#555;border:1px solid #DDD9D0}
+        .btn-modifica-tariffa:hover{background:#E5E2DC}
+        .btn-salva-tariffa{background:#1B4332;color:#FFFFFF}
+        .btn-salva-tariffa:hover{background:#245A3F}
+        .btn-annulla-tariffa{background:#EFEDE8;color:#555;border:1px solid #DDD9D0}
+        .btn-annulla-tariffa:hover{background:#E5E2DC}
+        .credenziali-card{background:#FFFFFF;border:1px solid #DDD9D0;border-radius:12px;overflow:hidden}
+        .credenziali-header{padding:16px 24px;background:#F9F8F5;border-bottom:1px solid #EBE8E2;display:grid;grid-template-columns:200px 1fr 1fr 140px;gap:16px;align-items:center}
+        .credenziali-header span{font-family:'Source Sans 3',sans-serif;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.4px}
+        .credenziali-riga{display:grid;grid-template-columns:200px 1fr 1fr 140px;gap:16px;align-items:center;padding:14px 24px;border-bottom:1px solid #F5F3EF;transition:background .15s ease}
+        .credenziali-riga:last-child{border-bottom:none}
+        .credenziali-riga:hover{background:rgba(27,67,50,.015)}
+        .credenziali-docente{display:flex;align-items:center;gap:10px}
+        .credenziali-avatar{width:36px;height:36px;border-radius:50%;background:#1B4332;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-family:'Lora',serif;font-size:13px;font-weight:700;flex-shrink:0}
+        .credenziali-nome{font-family:'Source Sans 3',sans-serif;font-size:15px;font-weight:600;color:#333}
+        .credenziali-campo{font-family:'Source Sans 3',sans-serif;font-size:14px;color:#555}
+        .credenziali-password{display:flex;align-items:center;gap:8px}
+        .credenziali-password-text{font-family:'Source Sans 3',sans-serif;font-size:14px;color:#555}
+        .btn-toggle-password{background:none;border:none;cursor:pointer;font-size:16px;color:#999;padding:2px;transition:color .2s ease}
+        .btn-toggle-password:hover{color:#555}
+        .credenziali-azioni{display:flex;gap:6px;justify-content:flex-end}
+        .credenziali-input{width:100%;padding:7px 10px;border:1.5px solid #CCC;border-radius:6px;font-family:'Source Sans 3',sans-serif;font-size:14px;color:#333;outline:none}
+        .credenziali-input:focus{border-color:#1B4332;box-shadow:0 0 0 2px rgba(27,67,50,.1)}
+        .btn-cred{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border:none;border-radius:6px;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s ease}
+        .btn-cred-modifica{background:#EFEDE8;color:#555;border:1px solid #DDD9D0}
+        .btn-cred-modifica:hover{background:#E5E2DC}
+        .btn-cred-salva{background:#1B4332;color:#FFFFFF}
+        .btn-cred-salva:hover{background:#245A3F}
+        .btn-cred-annulla{background:#EFEDE8;color:#555;border:1px solid #DDD9D0}
+        .btn-cred-annulla:hover{background:#E5E2DC}
+        .toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;color:#FFFFFF;box-shadow:0 6px 24px rgba(0,0,0,.15);z-index:3000;opacity:0;transform:translateY(20px);transition:all .3s ease;pointer-events:none}
+        .toast.visibile{opacity:1;transform:translateY(0)}
+        .toast-successo{background:#2E7D32}
+        .toast-errore{background:#C62828}
+        .empty-state{text-align:center;padding:40px 20px;color:#AAA}
+        .empty-state .empty-icon{font-size:40px;margin-bottom:12px;opacity:.5}
+        .empty-state p{font-family:'Source Sans 3',sans-serif;font-size:15px;color:#999}
+        .skeleton{background:linear-gradient(90deg,#F0EDEA 25%,#E8E5E0 50%,#F0EDEA 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .separatore{border:none;border-top:2px solid #EBE8E2;margin:16px 0}
+        @media(max-width:900px){.giorno-card-body{grid-template-columns:1fr}.tariffe-grid{grid-template-columns:1fr}.credenziali-header,.credenziali-riga{grid-template-columns:1fr;gap:8px}.credenziali-header span:first-child{display:block}.credenziali-header span:not(:first-child){display:none}.credenziali-riga{padding:16px 20px}.credenziali-docente{margin-bottom:4px}.credenziali-campo{padding-left:46px}.credenziali-password{padding-left:46px}.credenziali-azioni{padding-left:46px;justify-content:flex-start}}
+        @media(max-width:600px){.tariffa-boxes{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
-
-    <!-- Sidebar e header creati da initPage() -->
-
-    <!-- MAIN CONTENT -->
     <main class="main-content">
         <div class="page-body">
-
-            <!-- ═══════════════════════════════════
-                 PANNELLO 1 — ORARI SCUOLA
-                 ═══════════════════════════════════ -->
             <div class="pannello" id="pannello-orari">
-                <div class="pannello-titolo">
-                    <span class="icon">🕐</span>
-                    Orari Scuola
-                </div>
+                <div class="pannello-titolo"><span class="icon">🕐</span> Orari Scuola</div>
                 <div class="orari-grid" id="orari-grid">
-                    <!-- Le card dei 5 giorni vengono generate da JS -->
-                    <div style="padding:40px;text-align:center;color:#AAA;">
-                        <div class="skeleton" style="height:120px;border-radius:12px;"></div>
-                    </div>
+                    <div style="padding:40px;text-align:center;color:#AAA;"><div class="skeleton" style="height:120px;border-radius:12px;"></div></div>
                 </div>
             </div>
-
             <hr class="separatore">
-
-            <!-- ═══════════════════════════════════
-                 PANNELLO 2 — TARIFFARIO DOCENTI
-                 ═══════════════════════════════════ -->
             <div class="pannello" id="pannello-tariffe">
-                <div class="pannello-titolo">
-                    <span class="icon">💰</span>
-                    Tariffario Docenti
-                </div>
+                <div class="pannello-titolo"><span class="icon">💰</span> Tariffario Docenti</div>
                 <div class="tariffe-grid" id="tariffe-grid">
-                    <!-- Le card tariffe vengono generate da JS -->
-                    <div style="padding:40px;text-align:center;color:#AAA;">
-                        <div class="skeleton" style="height:200px;border-radius:12px;"></div>
-                    </div>
+                    <div style="padding:40px;text-align:center;color:#AAA;"><div class="skeleton" style="height:200px;border-radius:12px;"></div></div>
                 </div>
             </div>
-
             <hr class="separatore">
-
-            <!-- ═══════════════════════════════════
-                 PANNELLO 3 — CREDENZIALI DOCENTI
-                 ═══════════════════════════════════ -->
             <div class="pannello" id="pannello-credenziali">
-                <div class="pannello-titolo">
-                    <span class="icon">🔐</span>
-                    Credenziali Docenti
-                </div>
+                <div class="pannello-titolo"><span class="icon">🔐</span> Credenziali Docenti</div>
                 <div id="credenziali-container">
-                    <!-- La tabella credenziali viene generata da JS -->
-                    <div style="padding:40px;text-align:center;color:#AAA;">
-                        <div class="skeleton" style="height:100px;border-radius:12px;"></div>
-                    </div>
+                    <div style="padding:40px;text-align:center;color:#AAA;"><div class="skeleton" style="height:100px;border-radius:12px;"></div></div>
                 </div>
             </div>
-
         </div>
     </main>
-
-    <!-- TOAST per feedback -->
     <div class="toast" id="toast"></div>
-
-    <!-- SCRIPTS -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="js/firebase-config.js"></script>
@@ -834,6 +149,5 @@
     <script src="js/template.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/impostazioni.js"></script>
-
 </body>
 </html>
