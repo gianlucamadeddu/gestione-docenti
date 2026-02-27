@@ -534,6 +534,205 @@
         .dettaglio-label { flex: 0 0 120px; font-size: 13px; color: #777; font-weight: 500; }
         .dettaglio-valore { font-size: 14px; color: #333; font-weight: 500; }
 
+        /* ── Day Tabs (Panorama) ── */
+        .day-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .day-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 8px 18px;
+            border: 1.5px solid #DDD9D0;
+            border-radius: 10px;
+            background: #FFFFFF;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 64px;
+        }
+        .day-tab:hover { background: #F8F6F2; border-color: #BBB; }
+        .day-tab.active {
+            background: #1B4332;
+            border-color: #1B4332;
+            color: #FFFFFF;
+        }
+        .day-tab-nome {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .day-tab-num {
+            font-family: 'Lora', serif;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .day-tab.active .day-tab-nome,
+        .day-tab.active .day-tab-num { color: #FFFFFF; }
+
+        /* ── Panorama Table ── */
+        .panorama-table .col-aula-pan {
+            font-size: 12px;
+            padding: 10px 6px;
+        }
+        .th-count {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 4px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .th-count-busy { background: rgba(255,255,255,0.25); color: #fff; }
+        .th-count-free { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); font-weight: 400; }
+
+        .pan-cell-free {
+            background: #F0FAF0 !important;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .pan-cell-free:hover { background: #DCF2DC !important; }
+        .cella-free-label {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 11px;
+            color: #4CAF50;
+            font-weight: 600;
+            opacity: 0.6;
+        }
+        .pan-cell-free:hover .cella-free-label { opacity: 1; }
+
+        .pan-cell-busy .cella-item { margin-bottom: 4px; }
+        .pan-cell-busy .cella-item:last-child { margin-bottom: 0; }
+
+        /* Panorama: mostra docente + classe nella cella */
+        .cella-docente { font-size: 11px; color: #555; font-weight: 400; }
+        .cella-docente-rip { font-size: 11px; color: #BF360C; font-weight: 400; }
+
+        /* Panorama Summary */
+        .panorama-summary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            padding: 14px 16px;
+            margin-top: 12px;
+            background: #F9F8F5;
+            border: 1px solid #EFEDE8;
+            border-radius: 10px;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13px;
+            color: #666;
+        }
+        .pan-stat { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+
+        /* ── Panorama Calendario (settimana intera, tutto visibile) ── */
+        .pancal-table td {
+            vertical-align: top;
+            padding: 4px 3px;
+        }
+        .pancal-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .pancal-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 11px;
+            line-height: 1.3;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            position: relative;
+        }
+        .pancal-item:hover { opacity: 0.85; }
+        .pancal-item-lez {
+            background: #E3F2FD;
+            border-left: 3px solid #1565C0;
+        }
+        .pancal-item-rip {
+            background: #FFF3E0;
+            border-left: 3px solid #E65100;
+        }
+        .pancal-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .pancal-item-materia {
+            font-weight: 700;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pancal-item-lez .pancal-item-materia { color: #0D47A1; }
+        .pancal-item-rip .pancal-item-materia { color: #BF360C; }
+        .pancal-item-detail {
+            color: #777;
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pancal-item-aula {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 3px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .pancal-item-lez .pancal-item-aula { background: rgba(21,101,192,0.12); color: #1565C0; }
+        .pancal-item-rip .pancal-item-aula { background: rgba(230,81,0,0.12); color: #E65100; }
+        .pancal-more {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            color: #999;
+            text-align: center;
+            padding: 2px;
+            cursor: pointer;
+        }
+        .pancal-more:hover { color: #555; }
+        .pancal-count-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            font-size: 8px;
+            font-weight: 700;
+            display: none; /* reserved for future */
+        }
+        .pancal-empty-slot {
+            color: #CCC;
+            font-size: 11px;
+            text-align: center;
+            padding: 6px 0;
+        }
+        .pancal-slot-count {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .pancal-slot-count-busy { background: rgba(255,255,255,0.2); }
+
         /* ── Responsive ── */
         @media (max-width: 900px) {
             .orario-table thead th.col-fascia { width: 70px; }
@@ -571,6 +770,8 @@
                         <button class="vista-btn active" data-vista="docente" onclick="cambiaVista('docente')">👤 Docente</button>
                         <button class="vista-btn" data-vista="aula" onclick="cambiaVista('aula')">🏫 Aula</button>
                         <button class="vista-btn" data-vista="classe" onclick="cambiaVista('classe')">🎓 Classe</button>
+                        <button class="vista-btn" data-vista="panorama" onclick="cambiaVista('panorama')">📊 Panorama Aule</button>
+                        <button class="vista-btn" data-vista="panorama_cal" onclick="cambiaVista('panorama_cal')">📋 Panorama Settimana</button>
                     </div>
                     <select id="select-entita" class="select">
                         <option value="">— Seleziona un docente —</option>
@@ -596,6 +797,9 @@
                 <button class="btn btn-secondary btn-sm" id="btn-next-week">Succ →</button>
                 <span class="week-nav-center" id="label-settimana">—</span>
             </div>
+
+            <!-- DAY TABS (solo Panorama) -->
+            <div class="day-tabs" id="day-tabs" style="display:none;"></div>
 
             <!-- TABELLA ORARIO -->
             <div class="orario-wrapper">
@@ -655,6 +859,12 @@
             </div>
             <div class="modal-body">
                 <div class="modal-error" id="modal-error"></div>
+                <div class="modal-form-group" id="modal-docente-group" style="display:none;">
+                    <label for="modal-lez-docente">Docente *</label>
+                    <select id="modal-lez-docente" class="select">
+                        <option value="">— Seleziona docente —</option>
+                    </select>
+                </div>
                 <div class="modal-form-group">
                     <label for="modal-giorno">Giorno</label>
                     <select id="modal-giorno" class="select">
