@@ -1,7 +1,12 @@
 // ============================================================
-// calendario.js — Orario Scolastico v2.0
+// calendario.js — Orario Scolastico v2.1
 // ============================================================
 // Gestisce la visualizzazione e modifica dell'orario settimanale.
+//
+// NOVITÀ v2.1:
+// - Pulsante "Elenco Studenti" nel calendario docente
+// - Modal con studenti raggruppati per classe
+// - Copia rapida email per invio link DAD
 //
 // NOVITÀ v2.0:
 // - Vista multi-modalità: Docente / Aula / Classe
@@ -11,7 +16,7 @@
 // - Info contestuali nelle celle in base alla vista attiva
 //
 // - Admin (calendario.html): seleziona docente/aula/classe, aggiunge/modifica/rimuove
-// - Docente (mio-orario.html): sola lettura del proprio orario
+// - Docente (mio-orario.html): sola lettura del proprio orario + elenco studenti
 //
 // Dipende da: utils.js (GIORNI, caricaImpostazioniOrari, calcolaFasceOrarie)
 // ============================================================
@@ -127,6 +132,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function initAdmin() {
   const selectEntita = document.getElementById("select-entita");
   const btnAggiungi = document.getElementById("btn-aggiungi");
+  const btnStudenti = document.getElementById("btn-elenco-studenti");
 
   // Carica tutte le liste in parallelo
   try {
@@ -171,7 +177,12 @@ async function initAdmin() {
         currentDocenteId = entitaSelezionata;
       }
       await caricaEmostraOrario();
+
+      // ★ Mostra/nascondi pulsante elenco studenti
+      aggiornaBottoneStudenti();
     } else {
+      // ★ Nascondi pulsante studenti
+      if (btnStudenti) btnStudenti.style.display = "none";
       mostraEmptyPerVista();
     }
   });
@@ -203,6 +214,9 @@ async function initDocente() {
   }
 
   await caricaEmostraOrario();
+
+  // ★ Mostra pulsante elenco studenti per il docente
+  aggiornaBottoneStudenti();
 }
 
 // ============================================================
@@ -228,8 +242,247 @@ function cambiaVista(nuovaVista) {
   btnAggiungi.disabled = true;
   btnAggiungi.style.display = (nuovaVista === "docente") ? "" : "none";
 
+  // ★ Nascondi pulsante studenti al cambio vista
+  const btnStudenti = document.getElementById("btn-elenco-studenti");
+  if (btnStudenti) btnStudenti.style.display = "none";
+
   // Reset tabella
   mostraEmptyPerVista();
+}
+
+// ============================================================
+// ★ GESTIONE PULSANTE ELENCO STUDENTI
+// ============================================================
+
+/**
+ * Mostra o nascondi il pulsante "Elenco Studenti"
+ * Visibile quando: ci sono lezioni caricate (vista docente o classe, o docente loggato)
+ */
+function aggiornaBottoneStudenti() {
+  const btnStudenti = document.getElementById("btn-elenco-studenti");
+  if (!btnStudenti) return;
+
+  // Mostra il pulsante se ci sono lezioni con classi assegnate
+  const classiNelOrario = getClassiDalleLezioni();
+  const mostra = classiNelOrario.length > 0 && (
+    isDocente ||
+    vistaCorrente === "docente" ||
+    vistaCorrente === "classe"
+  );
+
+  btnStudenti.style.display = mostra ? "" : "none";
+}
+
+/**
+ * Estrai le classi uniche dalle lezioni correnti
+ */
+function getClassiDalleLezioni() {
+  const classiSet = new Set();
+  lezioniCorrente.forEach(l => {
+    if (l.classe) classiSet.add(l.classe);
+  });
+  return Array.from(classiSet).sort();
+}
+
+// ============================================================
+// ★ MODAL ELENCO STUDENTI
+// ============================================================
+
+async function apriModalStudenti() {
+  const overlay = document.getElementById("studenti-overlay");
+  const body = document.getElementById("studenti-modal-body");
+  const title = document.getElementById("studenti-modal-title");
+
+  if (!overlay || !body) return;
+
+  // Titolo contestuale
+  if (isDocente) {
+    title.textContent = "👥 I Miei Studenti";
+  } else if (vistaCorrente === "classe" && entitaSelezionata) {
+    title.textContent = `👥 Studenti — Classe ${entitaSelezionata}`;
+  } else {
+    // Vista docente: trova nome docente
+    const doc = docentiLista.find(d => d.id === entitaSelezionata);
+    const nomeDoc = doc ? `${doc.cognome} ${doc.nome}` : "Docente";
+    title.textContent = `👥 Studenti di ${nomeDoc}`;
+  }
+
+  // Mostra loading
+  body.innerHTML = `
+    <div class="studenti-loading">
+      <div class="loading-spinner" style="width:36px;height:36px;border:3px solid #EFEDE8;border-top-color:#1B4332;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+      <p style="font-size:14px;color:#999;">Caricamento studenti…</p>
+    </div>
+  `;
+  overlay.classList.add("active");
+
+  try {
+    // Classi da cercare
+    const classi = getClassiDalleLezioni();
+
+    if (classi.length === 0) {
+      body.innerHTML = `
+        <div class="studenti-empty">
+          <div class="empty-icon">📭</div>
+          <p>Nessuna classe assegnata nell'orario.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Firestore "in" query supporta max 30 valori (più che sufficienti)
+    const snapshot = await db.collection("studenti")
+      .where("classe", "in", classi)
+      .get();
+
+    const studenti = [];
+    snapshot.forEach(doc => {
+      studenti.push({ id: doc.id, ...doc.data() });
+    });
+
+    // Raggruppa per classe
+    const perClasse = {};
+    classi.forEach(c => { perClasse[c] = []; });
+    studenti.forEach(s => {
+      if (perClasse[s.classe]) {
+        perClasse[s.classe].push(s);
+      }
+    });
+
+    // Ordina studenti per cognome dentro ogni classe
+    Object.keys(perClasse).forEach(c => {
+      perClasse[c].sort((a, b) => (a.cognome || "").localeCompare(b.cognome || ""));
+    });
+
+    // Raccogli tutte le email per la copia rapida
+    const tutteEmail = studenti
+      .map(s => s.email)
+      .filter(e => e && e.trim())
+      .sort();
+
+    // ── Render ──
+    let html = "";
+
+    // Barra copia email
+    if (tutteEmail.length > 0) {
+      html += `
+        <div class="studenti-copy-bar">
+          <span>📧 ${tutteEmail.length} email disponibili</span>
+          <button class="studenti-copy-btn" onclick="copiaEmailStudenti()">Copia tutte le email</button>
+        </div>
+      `;
+    }
+
+    // Gruppi per classe
+    classi.forEach(nomeClasse => {
+      const lista = perClasse[nomeClasse];
+      html += `<div class="studenti-classe-group">`;
+      html += `
+        <div class="studenti-classe-header">
+          <span class="studenti-classe-nome">Classe ${escapeHtml(nomeClasse)}</span>
+          <span class="studenti-classe-count">${lista.length} student${lista.length === 1 ? "e" : "i"}</span>
+        </div>
+      `;
+
+      if (lista.length === 0) {
+        html += `<div style="padding:12px 14px;color:#BBB;font-size:13px;">Nessuno studente registrato in questa classe</div>`;
+      } else {
+        lista.forEach(s => {
+          const iniziali = `${(s.nome || "?")[0]}${(s.cognome || "?")[0]}`.toUpperCase();
+          let contatti = [];
+          if (s.email) contatti.push(`<a href="mailto:${escapeHtml(s.email)}">${escapeHtml(s.email)}</a>`);
+          if (s.telefono) contatti.push(`📞 ${escapeHtml(s.telefono)}`);
+
+          html += `
+            <div class="studenti-list-item">
+              <div class="studenti-list-avatar">${iniziali}</div>
+              <div class="studenti-list-info">
+                <div class="studenti-list-nome">${escapeHtml(s.cognome)} ${escapeHtml(s.nome)}</div>
+                <div class="studenti-list-contatti">${contatti.join(" · ") || "Nessun contatto"}</div>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      html += `</div>`;
+    });
+
+    if (studenti.length === 0) {
+      html = `
+        <div class="studenti-empty">
+          <div class="empty-icon">🎓</div>
+          <p>Nessuno studente registrato nelle classi di questo orario.<br>
+          Aggiungili dalla sezione <strong>Anagrafica Studenti</strong>.</p>
+        </div>
+      `;
+    }
+
+    body.innerHTML = html;
+
+  } catch (err) {
+    console.error("Errore caricamento studenti:", err);
+    body.innerHTML = `
+      <div class="studenti-empty">
+        <div class="empty-icon">⚠️</div>
+        <p>Errore nel caricamento degli studenti.</p>
+      </div>
+    `;
+  }
+}
+
+function chiudiModalStudenti() {
+  const overlay = document.getElementById("studenti-overlay");
+  if (overlay) overlay.classList.remove("active");
+}
+
+// Chiudi cliccando fuori
+document.addEventListener("click", (e) => {
+  const overlay = document.getElementById("studenti-overlay");
+  if (e.target === overlay) chiudiModalStudenti();
+});
+
+/**
+ * Copia tutte le email degli studenti negli appunti
+ */
+async function copiaEmailStudenti() {
+  const classi = getClassiDalleLezioni();
+  if (classi.length === 0) return;
+
+  try {
+    const snapshot = await db.collection("studenti")
+      .where("classe", "in", classi)
+      .get();
+
+    const emails = [];
+    snapshot.forEach(doc => {
+      const email = doc.data().email;
+      if (email && email.trim()) emails.push(email.trim());
+    });
+
+    if (emails.length === 0) {
+      alert("Nessuna email trovata.");
+      return;
+    }
+
+    const testo = emails.sort().join("; ");
+    await navigator.clipboard.writeText(testo);
+
+    // Feedback visivo
+    const btn = document.querySelector(".studenti-copy-btn");
+    if (btn) {
+      const original = btn.textContent;
+      btn.textContent = "✅ Copiato!";
+      btn.style.background = "#2E7D32";
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.style.background = "";
+      }, 2000);
+    }
+  } catch (err) {
+    console.error("Errore copia email:", err);
+    alert("Errore durante la copia. Prova a copiare manualmente.");
+  }
 }
 
 // ============================================================
@@ -346,8 +599,6 @@ function renderTabella() {
   const mappaLezioni = {};
   lezioniCorrente.forEach(lez => {
     const key = `${lez.giorno}-${lez.slot}`;
-    // In vista aula/classe potrebbero esserci più lezioni nello stesso slot
-    // (es: stessa classe con docenti diversi non dovrebbe succedere, ma gestiamo)
     if (!mappaLezioni[key]) {
       mappaLezioni[key] = lez;
     }
@@ -413,18 +664,15 @@ function renderTabella() {
 
         // Info contestuali in base alla vista
         if (vistaCorrente === "docente" || isDocente) {
-          // Vista docente: mostra classe + aula
           html += `<span class="cella-classe">${escapeHtml(lezione.classe)}</span>`;
           if (lezione.aula) {
             html += `<span class="cella-aula">${escapeHtml(lezione.aula)}</span>`;
           }
         } else if (vistaCorrente === "aula") {
-          // Vista aula: mostra docente + classe
           const nomeDoc = mappaDocenti[lezione.docenteId] || "—";
           html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
           html += `<span class="cella-classe">${escapeHtml(lezione.classe)}</span>`;
         } else if (vistaCorrente === "classe") {
-          // Vista classe: mostra docente + aula
           const nomeDoc = mappaDocenti[lezione.docenteId] || "—";
           html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
           if (lezione.aula) {
@@ -535,7 +783,6 @@ function aggiornaFasceDisponibili() {
   selectFascia.innerHTML = `<option value="">— Seleziona fascia —</option>`;
 
   fasce.forEach(f => {
-    // Controlla se lo slot è già occupato (escludi la lezione in modifica)
     const occupato = lezioniCorrente.some(l =>
       l.giorno === giorno && l.slot === f.slot && l.id !== editingLezioneId
     );
@@ -562,7 +809,6 @@ function apriModal(mode, lezione = null) {
     titleEl.textContent = "Modifica Lezione";
     btnSave.textContent = "Salva Modifiche";
 
-    // Pre-compila i campi
     document.getElementById("modal-giorno").value = lezione.giorno;
     aggiornaFasceDisponibili();
     document.getElementById("modal-fascia").value = lezione.slot;
@@ -574,7 +820,6 @@ function apriModal(mode, lezione = null) {
     titleEl.textContent = "Aggiungi Lezione";
     btnSave.textContent = "Salva Lezione";
 
-    // Reset form
     document.getElementById("modal-giorno").value = "";
     document.getElementById("modal-fascia").innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
     document.getElementById("modal-fascia").disabled = true;
@@ -585,13 +830,9 @@ function apriModal(mode, lezione = null) {
 
   nascondiErroreModal();
 
-  // Mostra modal
   document.getElementById("modal-overlay").classList.add("active");
 }
 
-/**
- * Apri modal in modifica dalla cella cliccata
- */
 function apriModalModifica(lezioneId) {
   const lezione = lezioniCorrente.find(l => l.id === lezioneId);
   if (!lezione) return;
@@ -629,31 +870,14 @@ async function salvaLezione() {
   const classe = document.getElementById("modal-classe").value;
   const aula = document.getElementById("modal-aula").value;
 
-  // Validazione campi
-  if (!giorno) {
-    mostraErroreModal("Seleziona un giorno.");
-    return;
-  }
-  if (slotStr === "") {
-    mostraErroreModal("Seleziona una fascia oraria.");
-    return;
-  }
-  if (!materia) {
-    mostraErroreModal("Inserisci la materia.");
-    return;
-  }
-  if (!classe) {
-    mostraErroreModal("Seleziona una classe.");
-    return;
-  }
-  if (!aula) {
-    mostraErroreModal("Seleziona un'aula.");
-    return;
-  }
+  if (!giorno) { mostraErroreModal("Seleziona un giorno."); return; }
+  if (slotStr === "") { mostraErroreModal("Seleziona una fascia oraria."); return; }
+  if (!materia) { mostraErroreModal("Inserisci la materia."); return; }
+  if (!classe) { mostraErroreModal("Seleziona una classe."); return; }
+  if (!aula) { mostraErroreModal("Seleziona un'aula."); return; }
 
   const slot = parseInt(slotStr);
 
-  // ── Verifica slot docente non già occupato ──
   const slotOccupato = lezioniCorrente.some(l =>
     l.giorno === giorno && l.slot === slot && l.id !== editingLezioneId
   );
@@ -662,22 +886,19 @@ async function salvaLezione() {
     return;
   }
 
-  // Disabilita bottone salva
   const btnSave = document.getElementById("modal-save");
   btnSave.disabled = true;
   const originalText = btnSave.textContent;
   btnSave.textContent = "Controllo disponibilità…";
 
   try {
-    // ── Validazione conflitto AULA ──
-    // Cerca se qualcuno ha già prenotato quest'aula nello stesso giorno+slot
+    // Validazione conflitto AULA
     const conflittoAula = await db.collection("orarioScolastico")
       .where("giorno", "==", giorno)
       .where("slot", "==", slot)
       .where("aula", "==", aula)
       .get();
 
-    // Filtra: escludi il documento che stiamo modificando
     const conflitti = [];
     conflittoAula.forEach(doc => {
       if (doc.id !== editingLezioneId) {
@@ -686,7 +907,6 @@ async function salvaLezione() {
     });
 
     if (conflitti.length > 0) {
-      // Trova il nome del docente che ha l'aula occupata
       const conflitto = conflitti[0];
       const docConflitto = docentiLista.find(d => d.id === conflitto.docenteId);
       const nomeConflitto = docConflitto
@@ -701,7 +921,6 @@ async function salvaLezione() {
       return;
     }
 
-    // ── Salvataggio ──
     btnSave.textContent = "Salvataggio…";
 
     const datiLezione = {
@@ -714,16 +933,16 @@ async function salvaLezione() {
     };
 
     if (modalMode === "edit" && editingLezioneId) {
-      // Update del documento esistente
       await db.collection("orarioScolastico").doc(editingLezioneId).update(datiLezione);
     } else {
-      // Add nuovo documento
       await db.collection("orarioScolastico").add(datiLezione);
     }
 
-    // Chiudi modal e ricarica orario
     chiudiModal();
     await caricaEmostraOrario();
+
+    // ★ Aggiorna pulsante studenti dopo modifica orario
+    aggiornaBottoneStudenti();
 
   } catch (err) {
     console.error("Errore salvataggio lezione:", err);
@@ -744,6 +963,9 @@ async function rimuoviLezione(lezioneId) {
   try {
     await db.collection("orarioScolastico").doc(lezioneId).delete();
     await caricaEmostraOrario();
+
+    // ★ Aggiorna pulsante studenti dopo rimozione
+    aggiornaBottoneStudenti();
   } catch (err) {
     console.error("Errore rimozione lezione:", err);
     alert("Errore durante la rimozione. Riprova.");
@@ -773,9 +995,6 @@ function mostraEmptyPerVista() {
   }
 }
 
-/**
- * Escape HTML per prevenire XSS
- */
 function escapeHtml(str) {
   if (!str) return "";
   const div = document.createElement("div");
@@ -802,26 +1021,17 @@ document.addEventListener("click", (e) => {
   if (e.target === overlay) chiudiGestisci();
 });
 
-/**
- * Cambia tab tra Aule e Classi
- */
 function switchGestisciTab(tab) {
-  // Aggiorna bottoni tab
   document.querySelectorAll(".gestisci-tab").forEach(t => {
     t.classList.toggle("active", t.dataset.tab === tab);
   });
 
-  // Mostra/nascondi pannelli
   document.getElementById("panel-aule").style.display = (tab === "aule") ? "" : "none";
   document.getElementById("panel-classi").style.display = (tab === "classi") ? "" : "none";
 
-  // Renderizza la lista
   renderGestisciLista(tab);
 }
 
-/**
- * Renderizza la lista di aule o classi nel pannello
- */
 function renderGestisciLista(tipo) {
   const lista = tipo === "aule" ? auleLista : classiLista;
   const container = document.getElementById(`lista-${tipo}`);
@@ -831,7 +1041,6 @@ function renderGestisciLista(tipo) {
     return;
   }
 
-  // Conta quante lezioni usano ciascun nome
   const conteggioUso = {};
   lezioniCorrente.forEach(l => {
     const campo = tipo === "aule" ? l.aula : l.classe;
@@ -851,9 +1060,6 @@ function renderGestisciLista(tipo) {
   }).join("");
 }
 
-/**
- * Aggiunge una nuova aula o classe su Firestore
- */
 async function aggiungiEntita(tipo) {
   const inputId = tipo === "aule" ? "input-nuova-aula" : "input-nuova-classe";
   const input = document.getElementById(inputId);
@@ -861,7 +1067,6 @@ async function aggiungiEntita(tipo) {
 
   if (!nome) return;
 
-  // Controlla duplicati
   const lista = tipo === "aule" ? auleLista : classiLista;
   const duplicato = lista.some(item => item.nome.toLowerCase() === nome.toLowerCase());
   if (duplicato) {
@@ -872,7 +1077,6 @@ async function aggiungiEntita(tipo) {
   try {
     const ref = await db.collection(tipo).add({ nome: nome });
 
-    // Aggiorna lista locale
     const nuovoItem = { id: ref.id, nome: nome };
     if (tipo === "aule") {
       auleLista.push(nuovoItem);
@@ -882,11 +1086,9 @@ async function aggiungiEntita(tipo) {
       classiLista.sort((a, b) => a.nome.localeCompare(b.nome));
     }
 
-    // Aggiorna UI
     input.value = "";
     renderGestisciLista(tipo);
     aggiornaDropdownModal();
-    // Aggiorna anche il dropdown entità se siamo nella vista giusta
     if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
       popolaDropdownEntita();
     }
@@ -897,9 +1099,6 @@ async function aggiungiEntita(tipo) {
   }
 }
 
-/**
- * Attiva la modalità rinomina per un item
- */
 function iniziaRinomina(tipo, id, nomeAttuale) {
   const itemEl = document.getElementById(`gestisci-item-${id}`);
   if (!itemEl) return;
@@ -910,15 +1109,11 @@ function iniziaRinomina(tipo, id, nomeAttuale) {
     <button class="gestisci-item-btn" onclick="renderGestisciLista('${tipo}')" title="Annulla">❌</button>
   `;
 
-  // Focus sull'input
   const input = document.getElementById(`rinomina-input-${id}`);
   input.focus();
   input.select();
 }
 
-/**
- * Salva la rinomina su Firestore e aggiorna le lezioni collegate
- */
 async function salvaRinomina(tipo, id) {
   const input = document.getElementById(`rinomina-input-${id}`);
   if (!input) return;
@@ -932,13 +1127,11 @@ async function salvaRinomina(tipo, id) {
 
   const vecchioNome = item.nome;
 
-  // Se il nome non è cambiato, chiudi semplicemente
   if (nuovoNome === vecchioNome) {
     renderGestisciLista(tipo);
     return;
   }
 
-  // Controlla duplicati
   const duplicato = lista.some(i => i.id !== id && i.nome.toLowerCase() === nuovoNome.toLowerCase());
   if (duplicato) {
     alert(`Esiste già ${tipo === "aule" ? "un'aula" : "una classe"} con questo nome.`);
@@ -946,10 +1139,8 @@ async function salvaRinomina(tipo, id) {
   }
 
   try {
-    // 1. Aggiorna il documento nella collezione aule/classi
     await db.collection(tipo).doc(id).update({ nome: nuovoNome });
 
-    // 2. Aggiorna tutte le lezioni che usano il vecchio nome
     const campo = tipo === "aule" ? "aula" : "classe";
     const snapshot = await db.collection("orarioScolastico")
       .where(campo, "==", vecchioNome)
@@ -963,22 +1154,18 @@ async function salvaRinomina(tipo, id) {
       await batch.commit();
     }
 
-    // 3. Aggiorna lista locale
     item.nome = nuovoNome;
     lista.sort((a, b) => a.nome.localeCompare(b.nome));
 
-    // 4. Aggiorna anche lezioniCorrente in locale
     lezioniCorrente.forEach(l => {
       if (l[campo] === vecchioNome) l[campo] = nuovoNome;
     });
 
-    // 5. Refresh UI
     renderGestisciLista(tipo);
     aggiornaDropdownModal();
     if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
       popolaDropdownEntita();
     }
-    // Refresh tabella se visibile
     if (entitaSelezionata) renderTabella();
 
   } catch (err) {
@@ -987,11 +1174,7 @@ async function salvaRinomina(tipo, id) {
   }
 }
 
-/**
- * Elimina un'aula o classe da Firestore
- */
 async function eliminaEntita(tipo, id, nome) {
-  // Verifica se è in uso nelle lezioni
   const campo = tipo === "aule" ? "aula" : "classe";
   const snapshot = await db.collection("orarioScolastico")
     .where(campo, "==", nome)
@@ -1004,14 +1187,12 @@ async function eliminaEntita(tipo, id, nome) {
     );
     if (!conferma) return;
 
-    // Svuota il campo nelle lezioni
     const batch = db.batch();
     snapshot.forEach(doc => {
       batch.update(doc.ref, { [campo]: "" });
     });
     await batch.commit();
 
-    // Aggiorna lezioniCorrente localmente
     lezioniCorrente.forEach(l => {
       if (l[campo] === nome) l[campo] = "";
     });
@@ -1020,17 +1201,14 @@ async function eliminaEntita(tipo, id, nome) {
   }
 
   try {
-    // Elimina il documento
     await db.collection(tipo).doc(id).delete();
 
-    // Aggiorna lista locale
     if (tipo === "aule") {
       auleLista = auleLista.filter(a => a.id !== id);
     } else {
       classiLista = classiLista.filter(c => c.id !== id);
     }
 
-    // Refresh UI
     renderGestisciLista(tipo);
     aggiornaDropdownModal();
     if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
@@ -1044,9 +1222,6 @@ async function eliminaEntita(tipo, id, nome) {
   }
 }
 
-/**
- * Aggiorna i dropdown aula e classe nella modal lezione
- */
 function aggiornaDropdownModal() {
   const selectClasse = document.getElementById("modal-classe");
   const selectAula = document.getElementById("modal-aula");
