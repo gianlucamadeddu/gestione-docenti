@@ -354,13 +354,18 @@ async function apriModalStudenti() {
       }
     });
 
-    // Raggruppa per classe
+    // Raggruppa per classe (uno studente può apparire in più classi)
     const perClasse = {};
     classi.forEach(c => { perClasse[c] = []; });
     studenti.forEach(s => {
-      if (perClasse[s.classe]) {
-        perClasse[s.classe].push(s);
-      }
+      const classiStudente = (s.classi && Array.isArray(s.classi) && s.classi.length > 0)
+        ? s.classi.filter(c => c)
+        : [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
+      classiStudente.forEach(c => {
+        if (perClasse[c]) {
+          perClasse[c].push(s);
+        }
+      });
     });
 
     // Ordina studenti per cognome dentro ogni classe
@@ -368,11 +373,12 @@ async function apriModalStudenti() {
       perClasse[c].sort((a, b) => (a.cognome || "").localeCompare(b.cognome || ""));
     });
 
-    // Raccogli tutte le email per la copia rapida
-    const tutteEmail = studenti
-      .map(s => s.email)
-      .filter(e => e && e.trim())
-      .sort();
+    // Raccogli tutte le email per la copia rapida (deduplicate)
+    const tutteEmail = [...new Set(
+      studenti
+        .map(s => s.email)
+        .filter(e => e && e.trim())
+    )].sort();
 
     // ── Render ──
     let html = "";
