@@ -11,7 +11,9 @@
     <link rel="icon" href="data:,">
     <style>
         /* ═══════════════════════════════════════════
-           CALENDARIO / ORARIO SCOLASTICO STYLES
+           CALENDARIO / ORARIO SCOLASTICO v3.0
+           Griglia unificata mattina + pomeriggio
+           con lezioni (blu) e ripetizioni (arancio)
            ═══════════════════════════════════════════ */
 
         /* Toolbar */
@@ -20,29 +22,41 @@
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             flex-wrap: wrap;
         }
-
         .toolbar-left {
             display: flex;
             align-items: center;
             gap: 12px;
             flex-wrap: wrap;
         }
-
         .toolbar-left label {
             font-family: 'Source Sans 3', sans-serif;
             font-size: 14px;
             font-weight: 600;
             color: #555;
         }
+        .toolbar-left .select { min-width: 180px; }
 
-        .toolbar-left .select {
-            min-width: 180px;
+        /* Week navigation */
+        .week-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .week-nav-center {
+            font-family: 'Lora', serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1B4332;
+            min-width: 160px;
+            text-align: center;
         }
 
-        /* Vista selector styling */
+        /* Vista selector */
         .vista-selector {
             display: flex;
             border: 1.5px solid #DDD9D0;
@@ -50,7 +64,6 @@
             overflow: hidden;
             background: #FFFFFF;
         }
-
         .vista-btn {
             padding: 8px 16px;
             font-family: 'Source Sans 3', sans-serif;
@@ -64,22 +77,11 @@
             border-right: 1px solid #EFEDE8;
             white-space: nowrap;
         }
+        .vista-btn:last-child { border-right: none; }
+        .vista-btn:hover { background: #F8F6F2; color: #555; }
+        .vista-btn.active { background: #1B4332; color: #FFFFFF; }
 
-        .vista-btn:last-child {
-            border-right: none;
-        }
-
-        .vista-btn:hover {
-            background: #F8F6F2;
-            color: #555;
-        }
-
-        .vista-btn.active {
-            background: #1B4332;
-            color: #FFFFFF;
-        }
-
-        /* Tabella orario */
+        /* ── Tabella orario ── */
         .orario-wrapper {
             background: #FFFFFF;
             border: 1px solid #DDD9D0;
@@ -87,13 +89,11 @@
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-
         .orario-table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
-
         .orario-table thead th {
             background: #1B4332;
             color: #FFFFFF;
@@ -105,11 +105,7 @@
             letter-spacing: 0.3px;
             border-right: 1px solid rgba(255,255,255,0.15);
         }
-
-        .orario-table thead th:last-child {
-            border-right: none;
-        }
-
+        .orario-table thead th:last-child { border-right: none; }
         .orario-table thead th.col-fascia {
             width: 100px;
             background: #14322A;
@@ -117,26 +113,18 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
         .orario-table tbody td {
-            padding: 10px 8px;
+            padding: 6px 4px;
             text-align: center;
-            vertical-align: middle;
+            vertical-align: top;
             border-bottom: 1px solid #EFEDE8;
             border-right: 1px solid #EFEDE8;
             min-height: 60px;
-            height: 60px;
             font-family: 'Source Sans 3', sans-serif;
             font-size: 13.5px;
         }
-
-        .orario-table tbody td:last-child {
-            border-right: none;
-        }
-
-        .orario-table tbody tr:last-child td {
-            border-bottom: none;
-        }
+        .orario-table tbody td:last-child { border-right: none; }
+        .orario-table tbody tr:last-child td { border-bottom: none; }
 
         /* Cella fascia oraria (colonna sinistra) */
         .td-fascia {
@@ -145,8 +133,13 @@
             color: #555;
             font-size: 12.5px;
             line-height: 1.3;
+            vertical-align: middle;
+            text-align: center;
+            padding: 10px 6px;
         }
-
+        .td-fascia-pom {
+            background: #FFF9F0;
+        }
         .fascia-inizio {
             font-family: 'Lora', serif;
             font-size: 15px;
@@ -154,7 +147,6 @@
             color: #1B4332;
             display: block;
         }
-
         .fascia-fine {
             font-size: 11.5px;
             color: #999;
@@ -162,78 +154,147 @@
             margin-top: 1px;
         }
 
-        /* Cella occupata */
-        .cella-occupata {
-            background: #F0FAF3;
+        /* ── Separatore mattina/pomeriggio ── */
+        .separator-row td {
+            border-bottom: none !important;
+        }
+        .td-separator {
+            padding: 0 !important;
+            border-right: none !important;
+            border-bottom: none !important;
+        }
+        .separator-line {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: linear-gradient(90deg, #FFF3E0 0%, #FFF8EC 50%, #FFF3E0 100%);
+            border-top: 2px solid #FFE0B2;
+            border-bottom: 2px solid #FFE0B2;
+        }
+        .separator-label {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            color: #E65100;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        /* ── Cella con contenuti ── */
+        .cella-occupata-multi {
+            padding: 4px !important;
+            vertical-align: top;
+        }
+
+        /* Item singolo dentro una cella */
+        .cella-item {
+            border-radius: 8px;
+            padding: 6px 8px;
             position: relative;
-            cursor: default;
+            margin-bottom: 3px;
+            transition: all 0.15s ease;
         }
+        .cella-item:last-child { margin-bottom: 0; }
 
-        /* Admin: cella cliccabile per modifica */
-        .cella-occupata.cella-editable {
+        /* Lezione (blu) */
+        .cella-lezione {
+            background: #E3F2FD;
+            border-left: 3px solid #1565C0;
+        }
+        .cella-item-editable { cursor: pointer; }
+        .cella-lezione.cella-item-editable:hover { background: #BBDEFB; }
+
+        /* Ripetizione (arancione) */
+        .cella-ripetizione {
+            background: #FFF3E0;
+            border-left: 3px solid #E65100;
             cursor: pointer;
-            transition: background 0.15s ease;
         }
-
-        .cella-occupata.cella-editable:hover {
-            background: #E2F5E9;
-        }
+        .cella-ripetizione:hover { background: #FFE0B2; }
 
         .cella-content {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 3px;
+            align-items: flex-start;
+            gap: 2px;
         }
-
         .cella-materia {
             font-weight: 600;
-            color: #1B4332;
-            font-size: 13.5px;
+            color: #0D47A1;
+            font-size: 12.5px;
             line-height: 1.2;
         }
-
-        .cella-classe {
-            background: #E3F2FD;
-            color: #1565C0;
-            font-size: 11px;
+        .cella-materia-rip {
             font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 4px;
-            display: inline-block;
+            color: #BF360C;
+            font-size: 12.5px;
+            line-height: 1.2;
         }
-
-        .cella-aula {
-            background: #FFF3E0;
-            color: #E65100;
+        .cella-classe {
+            background: rgba(21, 101, 192, 0.12);
+            color: #1565C0;
             font-size: 10px;
             font-weight: 600;
             padding: 1px 6px;
             border-radius: 4px;
             display: inline-block;
         }
-
-        .cella-docente {
-            background: #F3E5F5;
-            color: #6A1B9A;
-            font-size: 11px;
+        .cella-aula-tag {
+            background: rgba(230, 81, 0, 0.1);
+            color: #E65100;
+            font-size: 9.5px;
             font-weight: 600;
-            padding: 2px 8px;
+            padding: 1px 5px;
             border-radius: 4px;
             display: inline-block;
         }
+        .cella-docente {
+            background: #F3E5F5;
+            color: #6A1B9A;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .cella-studente {
+            background: rgba(230, 81, 0, 0.08);
+            color: #BF360C;
+            font-size: 10.5px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .cella-docente-rip {
+            background: #F3E5F5;
+            color: #6A1B9A;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 1px 5px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .cella-ora-rip {
+            font-size: 9.5px;
+            color: #999;
+            font-weight: 500;
+        }
 
+        /* Bottone rimuovi dentro cella */
         .cella-remove {
             position: absolute;
-            top: 4px;
-            right: 4px;
+            top: 2px;
+            right: 2px;
             background: none;
             border: none;
             color: #CCC;
-            font-size: 14px;
+            font-size: 12px;
             cursor: pointer;
-            width: 22px;
-            height: 22px;
+            width: 18px;
+            height: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -242,396 +303,256 @@
             line-height: 1;
             z-index: 2;
         }
+        .cella-remove:hover { background: #FFEBEE; color: #C62828; }
+        .cella-remove-rip:hover { background: #FFF3E0; color: #E65100; }
 
-        .cella-remove:hover {
-            background: #FFEBEE;
-            color: #C62828;
-        }
-
-        /* Cella vuota disponibile */
+        /* Cella vuota */
         .cella-vuota {
             color: #DDD;
             cursor: default;
+            vertical-align: middle;
+        }
+        .cella-clickable {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .cella-clickable:hover {
+            background: #F0FAF3;
+        }
+        .cella-add-hint {
+            color: #CCC;
+            font-size: 16px;
+            font-weight: 300;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .cella-clickable:hover .cella-add-hint {
+            opacity: 1;
         }
 
-        /* Cella fuori range (giorno con meno fasce) */
+        /* Cella fuori range */
         .cella-disabled {
             background: #F5F3EF;
             color: transparent;
         }
 
-        .cella-disabled::after {
-            content: '';
-        }
-
-        /* Empty state dentro la tabella */
+        /* Empty state */
         .orario-empty {
             text-align: center;
             padding: 48px 24px;
             color: #AAA;
         }
+        .orario-empty .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+        .orario-empty p { font-family: 'Source Sans 3', sans-serif; font-size: 15px; color: #999; }
 
-        .orario-empty .empty-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-            opacity: 0.4;
+        /* Loading */
+        .orario-loading { text-align: center; padding: 60px 24px; }
+        .orario-loading .loading-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid #EFEDE8; border-top-color: #1B4332;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
         }
+        .orario-loading p { font-family: 'Source Sans 3', sans-serif; font-size: 14px; color: #999; }
 
-        .orario-empty p {
+        /* ── Legenda ── */
+        .legenda-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 12px;
+            padding: 10px 16px;
+            background: #FFFFFF;
+            border: 1px solid #DDD9D0;
+            border-radius: 8px;
             font-family: 'Source Sans 3', sans-serif;
-            font-size: 15px;
-            color: #999;
+            font-size: 13px;
         }
-
-        /* ── Modal Aggiungi/Modifica Lezione ── */
-        .modal-form-group {
-            margin-bottom: 16px;
+        .legenda-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
+        .legenda-dot {
+            width: 12px; height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .legenda-dot-lez { background: #E3F2FD; border: 1.5px solid #1565C0; }
+        .legenda-dot-rip { background: #FFF3E0; border: 1.5px solid #E65100; }
 
+        /* ── Modal form groups ── */
+        .modal-form-group { margin-bottom: 16px; }
         .modal-form-group label {
             display: block;
             font-family: 'Source Sans 3', sans-serif;
-            font-size: 13.5px;
-            font-weight: 600;
-            color: #333;
+            font-size: 13.5px; font-weight: 600; color: #333;
             margin-bottom: 6px;
         }
-
         .modal-form-group .select,
-        .modal-form-group .input {
-            width: 100%;
-        }
-
+        .modal-form-group .input { width: 100%; }
         .modal-error {
-            background: #FFEBEE;
-            color: #C62828;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 13.5px;
-            font-weight: 500;
-            margin-bottom: 16px;
-            display: none;
+            background: #FFEBEE; color: #C62828;
+            padding: 10px 14px; border-radius: 8px;
+            font-size: 13.5px; font-weight: 500;
+            margin-bottom: 16px; display: none;
         }
+        .modal-error.visible { display: block; }
 
-        .modal-error.visible {
-            display: block;
-        }
-
-        /* Loading per la tabella */
-        .orario-loading {
-            text-align: center;
-            padding: 60px 24px;
-        }
-
-        .orario-loading .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #EFEDE8;
-            border-top-color: #1B4332;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 16px;
-        }
-
-        .orario-loading p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #999;
-        }
-
-        /* Badge vista attiva nella toolbar */
-        .vista-label {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            color: #999;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* ── Gestisci Aule e Classi Modal ── */
-        .gestisci-tabs {
+        /* ── Modal scelta tipo ── */
+        .scelta-container {
             display: flex;
-            border-bottom: 2px solid #EFEDE8;
+            gap: 16px;
+            padding: 8px 0;
         }
-
-        .gestisci-tab {
+        .scelta-card {
             flex: 1;
-            padding: 12px 16px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            border: none;
-            background: transparent;
-            color: #999;
+            padding: 24px 20px;
+            border: 2px solid #EFEDE8;
+            border-radius: 12px;
+            text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-        }
-
-        .gestisci-tab:hover {
-            color: #555;
-            background: #F8F6F2;
-        }
-
-        .gestisci-tab.active {
-            color: #1B4332;
-            border-bottom-color: #1B4332;
-        }
-
-        .gestisci-panel {
-            padding: 20px 24px;
-        }
-
-        .gestisci-add-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .gestisci-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            max-height: 320px;
-            overflow-y: auto;
-        }
-
-        .gestisci-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: #F8F6F2;
-            border: 1px solid #EFEDE8;
-            border-radius: 8px;
-            transition: all 0.15s ease;
-        }
-
-        .gestisci-item:hover {
-            border-color: #DDD9D0;
-        }
-
-        .gestisci-item-nome {
-            flex: 1;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .gestisci-item-input {
-            flex: 1;
-            padding: 4px 8px;
-            border: 1.5px solid #1B4332;
-            border-radius: 6px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            outline: none;
-            background: #fff;
-        }
-
-        .gestisci-item-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 15px;
-            padding: 4px;
-            border-radius: 4px;
-            transition: all 0.15s ease;
-            line-height: 1;
-            color: #999;
-        }
-
-        .gestisci-item-btn:hover {
-            background: #EFEDE8;
-            color: #333;
-        }
-
-        .gestisci-item-btn.btn-delete:hover {
-            background: #FFEBEE;
-            color: #C62828;
-        }
-
-        .gestisci-item-btn.btn-save {
-            color: #1B4332;
-        }
-
-        .gestisci-item-btn.btn-save:hover {
-            background: #D8F3DC;
-            color: #1B4332;
-        }
-
-        .gestisci-empty {
-            text-align: center;
-            padding: 24px;
-            color: #BBB;
-            font-size: 14px;
-        }
-
-        .gestisci-item-count {
-            font-size: 11px;
-            color: #BBB;
-            margin-left: 4px;
-        }
-
-        /* ── Modal Elenco Studenti ── */
-        .studenti-modal {
-            max-width: 640px;
-        }
-        .studenti-classe-group {
-            margin-bottom: 20px;
-        }
-        .studenti-classe-group:last-child {
-            margin-bottom: 0;
-        }
-        .studenti-classe-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
-            background: #E3F2FD;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        .studenti-classe-nome {
-            font-family: 'Lora', serif;
-            font-size: 16px;
-            font-weight: 600;
-            color: #1565C0;
-        }
-        .studenti-classe-count {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            color: #1565C0;
-            background: rgba(21, 101, 192, 0.1);
-            padding: 2px 10px;
-            border-radius: 12px;
-        }
-        .studenti-list-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            border-bottom: 1px solid #F5F3EF;
-            transition: background 0.1s;
-        }
-        .studenti-list-item:last-child {
-            border-bottom: none;
-        }
-        .studenti-list-item:hover {
             background: #FAFAF8;
         }
-        .studenti-list-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #1B4332;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .scelta-card:hover { border-color: #1B4332; background: #F0FAF3; }
+        .scelta-card-icon { font-size: 36px; margin-bottom: 8px; }
+        .scelta-card-title {
             font-family: 'Lora', serif;
-            font-size: 11px;
-            font-weight: 700;
-            flex-shrink: 0;
+            font-size: 16px; font-weight: 600;
+            color: #1B4332; margin-bottom: 4px;
         }
-        .studenti-list-info {
-            flex: 1;
-            min-width: 0;
+        .scelta-card-desc {
+            font-size: 12.5px; color: #777; line-height: 1.4;
         }
-        .studenti-list-nome {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            color: #333;
-        }
-        .studenti-list-contatti {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 12px;
-            color: #777;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .studenti-list-contatti a {
-            color: #1B4332;
-            text-decoration: none;
-        }
-        .studenti-list-contatti a:hover {
-            text-decoration: underline;
-        }
-        .studenti-copy-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 14px;
-            background: #D8F3DC;
-            border-radius: 8px;
-            margin-bottom: 16px;
-        }
-        .studenti-copy-bar span {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13px;
-            color: #1B4332;
-            font-weight: 500;
-        }
-        .studenti-copy-btn {
-            background: #1B4332;
-            color: #fff;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 6px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .studenti-copy-btn:hover {
-            background: #245A3F;
-        }
-        .studenti-empty {
-            text-align: center;
-            padding: 32px 20px;
-            color: #AAA;
-        }
-        .studenti-empty .empty-icon {
-            font-size: 36px;
-            margin-bottom: 8px;
-            opacity: 0.4;
-        }
-        .studenti-empty p {
-            font-size: 14px;
-            color: #999;
-        }
-        .studenti-loading {
-            text-align: center;
-            padding: 40px;
-        }
+        .scelta-card-lez:hover { border-color: #1565C0; background: #E3F2FD; }
+        .scelta-card-rip:hover { border-color: #E65100; background: #FFF3E0; }
 
-        /* Responsive */
+        /* ── Form rows inline ── */
+        .modal-form-row {
+            display: flex;
+            gap: 12px;
+        }
+        .modal-form-row .modal-form-group { flex: 1; }
+
+        /* ── Gestisci Aule e Classi ── */
+        .gestisci-tabs { display: flex; border-bottom: 2px solid #EFEDE8; }
+        .gestisci-tab {
+            flex: 1; padding: 12px 16px;
+            font-family: 'Source Sans 3', sans-serif; font-size: 14px; font-weight: 600;
+            border: none; background: transparent; color: #999;
+            cursor: pointer; transition: all 0.2s ease;
+            border-bottom: 2px solid transparent; margin-bottom: -2px;
+        }
+        .gestisci-tab:hover { color: #555; background: #F8F6F2; }
+        .gestisci-tab.active { color: #1B4332; border-bottom-color: #1B4332; }
+        .gestisci-panel { padding: 20px 24px; }
+        .gestisci-add-row { display: flex; gap: 8px; margin-bottom: 16px; }
+        .gestisci-list {
+            display: flex; flex-direction: column; gap: 6px;
+            max-height: 320px; overflow-y: auto;
+        }
+        .gestisci-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; background: #F8F6F2;
+            border: 1px solid #EFEDE8; border-radius: 8px; transition: all 0.15s ease;
+        }
+        .gestisci-item:hover { border-color: #DDD9D0; }
+        .gestisci-item-nome { flex: 1; font-family: 'Source Sans 3', sans-serif; font-size: 14px; font-weight: 500; color: #333; }
+        .gestisci-item-input {
+            flex: 1; padding: 4px 8px; border: 1.5px solid #1B4332;
+            border-radius: 6px; font-family: 'Source Sans 3', sans-serif;
+            font-size: 14px; outline: none; background: #fff;
+        }
+        .gestisci-item-btn {
+            background: none; border: none; cursor: pointer; font-size: 15px;
+            padding: 4px; border-radius: 4px; transition: all 0.15s ease;
+            line-height: 1; color: #999;
+        }
+        .gestisci-item-btn:hover { background: #EFEDE8; color: #333; }
+        .gestisci-item-btn.btn-delete:hover { background: #FFEBEE; color: #C62828; }
+        .gestisci-item-btn.btn-save { color: #1B4332; }
+        .gestisci-item-btn.btn-save:hover { background: #D8F3DC; color: #1B4332; }
+        .gestisci-empty { text-align: center; padding: 24px; color: #BBB; font-size: 14px; }
+        .gestisci-item-count { font-size: 11px; color: #BBB; margin-left: 4px; }
+
+        /* ── Modal Elenco Studenti ── */
+        .studenti-modal { max-width: 640px; }
+        .studenti-classe-group { margin-bottom: 20px; }
+        .studenti-classe-group:last-child { margin-bottom: 0; }
+        .studenti-classe-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: #E3F2FD; border-radius: 8px; margin-bottom: 10px;
+        }
+        .studenti-classe-nome { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: #1565C0; }
+        .studenti-classe-count {
+            font-family: 'Source Sans 3', sans-serif; font-size: 12px; font-weight: 600; color: #1565C0;
+            background: rgba(21, 101, 192, 0.1); padding: 2px 10px; border-radius: 12px;
+        }
+        .studenti-list-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; border-bottom: 1px solid #F5F3EF; transition: background 0.1s;
+        }
+        .studenti-list-item:last-child { border-bottom: none; }
+        .studenti-list-item:hover { background: #FAFAF8; }
+        .studenti-list-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #1B4332; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Lora', serif; font-size: 11px; font-weight: 700; flex-shrink: 0;
+        }
+        .studenti-list-info { flex: 1; min-width: 0; }
+        .studenti-list-nome { font-family: 'Source Sans 3', sans-serif; font-size: 14px; font-weight: 600; color: #333; }
+        .studenti-list-contatti {
+            font-family: 'Source Sans 3', sans-serif; font-size: 12px; color: #777;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .studenti-list-contatti a { color: #1B4332; text-decoration: none; }
+        .studenti-list-contatti a:hover { text-decoration: underline; }
+        .studenti-copy-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background: #D8F3DC; border-radius: 8px; margin-bottom: 16px;
+        }
+        .studenti-copy-bar span { font-family: 'Source Sans 3', sans-serif; font-size: 13px; color: #1B4332; font-weight: 500; }
+        .studenti-copy-btn {
+            background: #1B4332; color: #fff; border: none;
+            padding: 6px 14px; border-radius: 6px;
+            font-family: 'Source Sans 3', sans-serif; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .studenti-copy-btn:hover { background: #245A3F; }
+        .studenti-empty { text-align: center; padding: 32px 20px; color: #AAA; }
+        .studenti-empty .empty-icon { font-size: 36px; margin-bottom: 8px; opacity: 0.4; }
+        .studenti-empty p { font-size: 14px; color: #999; }
+
+        /* Dettaglio riga (per docente readonly) */
+        .dettaglio-riga {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 10px 0; border-bottom: 1px solid #F5F3EF;
+        }
+        .dettaglio-riga:last-child { border-bottom: none; }
+        .dettaglio-label { flex: 0 0 120px; font-size: 13px; color: #777; font-weight: 500; }
+        .dettaglio-valore { font-size: 14px; color: #333; font-weight: 500; }
+
+        /* ── Responsive ── */
         @media (max-width: 900px) {
             .orario-table thead th.col-fascia { width: 70px; }
             .orario-table thead th { font-size: 12px; padding: 10px 6px; }
-            .orario-table tbody td { padding: 8px 4px; font-size: 12px; }
+            .orario-table tbody td { padding: 4px 2px; font-size: 12px; }
             .fascia-inizio { font-size: 13px; }
             .fascia-fine { font-size: 10px; }
-            .cella-materia { font-size: 12px; }
-            .cella-classe { font-size: 10px; padding: 1px 6px; }
-            .cella-aula { font-size: 9px; }
-            .cella-docente { font-size: 10px; padding: 1px 6px; }
+            .cella-materia, .cella-materia-rip { font-size: 11px; }
+            .cella-classe, .cella-studente { font-size: 9px; }
             .vista-btn { padding: 6px 10px; font-size: 12px; }
+            .scelta-container { flex-direction: column; }
         }
-
         @media (max-width: 600px) {
             .toolbar { flex-direction: column; align-items: flex-start; }
             .toolbar-left { width: 100%; flex-direction: column; align-items: stretch; }
             .toolbar-left .select { min-width: 0; }
             .vista-selector { width: 100%; }
             .vista-btn { flex: 1; text-align: center; }
+            .week-nav { justify-content: center; }
         }
     </style>
 </head>
@@ -646,30 +567,34 @@
             <!-- TOOLBAR: vista + selettore + bottoni -->
             <div class="toolbar" id="admin-toolbar">
                 <div class="toolbar-left">
-                    <!-- Selettore vista -->
                     <div class="vista-selector">
                         <button class="vista-btn active" data-vista="docente" onclick="cambiaVista('docente')">👤 Docente</button>
                         <button class="vista-btn" data-vista="aula" onclick="cambiaVista('aula')">🏫 Aula</button>
                         <button class="vista-btn" data-vista="classe" onclick="cambiaVista('classe')">🎓 Classe</button>
                     </div>
-
-                    <!-- Dropdown dinamico (cambia in base alla vista) -->
                     <select id="select-entita" class="select">
                         <option value="">— Seleziona un docente —</option>
                     </select>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <!-- ★ NUOVO: Pulsante Elenco Studenti ★ -->
                     <button class="btn btn-accent" id="btn-elenco-studenti" style="display:none;" onclick="apriModalStudenti()">
                         👥 Elenco Studenti
                     </button>
                     <button class="btn btn-primary" id="btn-aggiungi" disabled>
-                        ➕ Aggiungi Lezione
+                        ➕ Aggiungi
                     </button>
                     <button class="btn btn-secondary" id="btn-gestisci" title="Gestisci Aule e Classi" onclick="apriGestisci()">
                         ⚙️ Gestisci
                     </button>
                 </div>
+            </div>
+
+            <!-- WEEK NAVIGATION -->
+            <div class="week-nav">
+                <button class="btn btn-secondary btn-sm" id="btn-prev-week">← Prec</button>
+                <button class="btn btn-secondary btn-sm" id="btn-oggi-week">Oggi</button>
+                <button class="btn btn-secondary btn-sm" id="btn-next-week">Succ →</button>
+                <span class="week-nav-center" id="label-settimana">—</span>
             </div>
 
             <!-- TABELLA ORARIO -->
@@ -682,8 +607,44 @@
                 </div>
             </div>
 
+            <!-- LEGENDA -->
+            <div class="legenda-bar">
+                <span class="legenda-item">
+                    <span class="legenda-dot legenda-dot-lez"></span>
+                    <span>Lezione</span>
+                </span>
+                <span class="legenda-item">
+                    <span class="legenda-dot legenda-dot-rip"></span>
+                    <span>Ripetizione</span>
+                </span>
+            </div>
+
         </div>
     </main>
+
+    <!-- ═══════ MODAL SCELTA TIPO ═══════ -->
+    <div class="modal-overlay" id="scelta-overlay">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Cosa vuoi aggiungere?</h3>
+                <button class="modal-close" onclick="chiudiScelta()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="scelta-container">
+                    <div class="scelta-card scelta-card-lez" onclick="sceltaLezione()">
+                        <div class="scelta-card-icon">📘</div>
+                        <div class="scelta-card-title">Lezione</div>
+                        <div class="scelta-card-desc">Lezione ricorrente nel calendario settimanale</div>
+                    </div>
+                    <div class="scelta-card scelta-card-rip" onclick="sceltaRipetizione()">
+                        <div class="scelta-card-icon">📙</div>
+                        <div class="scelta-card-title">Ripetizione</div>
+                        <div class="scelta-card-desc">Sessione singola con data e studente specifico</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ═══════ MODAL AGGIUNGI / MODIFICA LEZIONE ═══════ -->
     <div class="modal-overlay" id="modal-overlay">
@@ -694,33 +655,28 @@
             </div>
             <div class="modal-body">
                 <div class="modal-error" id="modal-error"></div>
-
                 <div class="modal-form-group">
                     <label for="modal-giorno">Giorno</label>
                     <select id="modal-giorno" class="select">
                         <option value="">— Seleziona giorno —</option>
                     </select>
                 </div>
-
                 <div class="modal-form-group">
                     <label for="modal-fascia">Fascia Oraria</label>
                     <select id="modal-fascia" class="select" disabled>
                         <option value="">— Prima seleziona il giorno —</option>
                     </select>
                 </div>
-
                 <div class="modal-form-group">
                     <label for="modal-materia">Materia</label>
                     <input type="text" id="modal-materia" class="input" placeholder="Es. Matematica">
                 </div>
-
                 <div class="modal-form-group">
                     <label for="modal-classe">Classe</label>
                     <select id="modal-classe" class="select">
                         <option value="">— Seleziona classe —</option>
                     </select>
                 </div>
-
                 <div class="modal-form-group">
                     <label for="modal-aula">Aula</label>
                     <select id="modal-aula" class="select">
@@ -735,6 +691,73 @@
         </div>
     </div>
 
+    <!-- ═══════ MODAL AGGIUNGI / MODIFICA RIPETIZIONE ═══════ -->
+    <div class="modal-overlay" id="modal-overlay-rip">
+        <div class="modal" style="max-width:540px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title-rip">Nuova Ripetizione</h3>
+                <button class="modal-close" id="modal-close-rip">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-form-group">
+                    <label for="modal-rip-docente">Docente *</label>
+                    <select id="modal-rip-docente" class="select">
+                        <option value="">— Seleziona docente —</option>
+                    </select>
+                </div>
+                <div class="modal-form-row">
+                    <div class="modal-form-group">
+                        <label for="modal-rip-data">Data *</label>
+                        <input type="date" id="modal-rip-data" class="input">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="modal-rip-ora">Ora inizio *</label>
+                        <input type="time" id="modal-rip-ora" class="input">
+                    </div>
+                </div>
+                <div class="modal-form-group">
+                    <label for="modal-rip-durata">Durata *</label>
+                    <select id="modal-rip-durata" class="select">
+                        <option value="60">1 ora (60 min)</option>
+                        <option value="90">1 ora e 30 (90 min)</option>
+                        <option value="120">2 ore (120 min)</option>
+                    </select>
+                </div>
+                <div class="modal-form-row">
+                    <div class="modal-form-group">
+                        <label for="modal-rip-studente">Studente *</label>
+                        <input type="text" id="modal-rip-studente" class="input" placeholder="Nome studente">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="modal-rip-materia">Materia *</label>
+                        <input type="text" id="modal-rip-materia" class="input" placeholder="Es: Matematica">
+                    </div>
+                </div>
+                <div class="modal-form-row">
+                    <div class="modal-form-group">
+                        <label for="modal-rip-classe">Classe</label>
+                        <input type="text" id="modal-rip-classe" class="input" placeholder="Es: 3A (opz.)">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="modal-rip-aula">Aula</label>
+                        <select id="modal-rip-aula" class="select">
+                            <option value="">— Nessuna —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-form-group">
+                    <label for="modal-rip-note">Note</label>
+                    <textarea id="modal-rip-note" class="input" rows="2" placeholder="Note aggiuntive (opzionale)" style="resize:vertical;min-height:48px;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger btn-sm" id="btn-elimina-rip" style="margin-right:auto;display:none;">🗑️ Elimina</button>
+                <button class="btn btn-secondary" id="modal-cancel-rip">Annulla</button>
+                <button class="btn btn-primary" id="modal-save-rip">Salva</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══════ MODAL GESTISCI AULE E CLASSI ═══════ -->
     <div class="modal-overlay" id="gestisci-overlay">
         <div class="modal" style="max-width:520px;">
@@ -743,46 +766,49 @@
                 <button class="modal-close" onclick="chiudiGestisci()">✕</button>
             </div>
             <div class="modal-body" style="padding:0;">
-                <!-- Tabs -->
                 <div class="gestisci-tabs">
                     <button class="gestisci-tab active" data-tab="aule" onclick="switchGestisciTab('aule')">🏫 Aule</button>
                     <button class="gestisci-tab" data-tab="classi" onclick="switchGestisciTab('classi')">🎓 Classi</button>
                 </div>
-
-                <!-- Tab Aule -->
                 <div class="gestisci-panel" id="panel-aule">
                     <div class="gestisci-add-row">
                         <input type="text" id="input-nuova-aula" class="input" placeholder="Nome nuova aula…" style="flex:1;" onkeydown="if(event.key==='Enter')aggiungiEntita('aule')">
                         <button class="btn btn-primary btn-sm" onclick="aggiungiEntita('aule')">Aggiungi</button>
                     </div>
-                    <div class="gestisci-list" id="lista-aule">
-                        <!-- Popolata da JS -->
-                    </div>
+                    <div class="gestisci-list" id="lista-aule"></div>
                 </div>
-
-                <!-- Tab Classi -->
                 <div class="gestisci-panel" id="panel-classi" style="display:none;">
                     <div class="gestisci-add-row">
                         <input type="text" id="input-nuova-classe" class="input" placeholder="Nome nuova classe…" style="flex:1;" onkeydown="if(event.key==='Enter')aggiungiEntita('classi')">
                         <button class="btn btn-primary btn-sm" onclick="aggiungiEntita('classi')">Aggiungi</button>
                     </div>
-                    <div class="gestisci-list" id="lista-classi">
-                        <!-- Popolata da JS -->
-                    </div>
+                    <div class="gestisci-list" id="lista-classi"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ═══════ ★ MODAL ELENCO STUDENTI ★ ═══════ -->
+    <!-- ═══════ MODAL ELENCO STUDENTI ═══════ -->
     <div class="modal-overlay" id="studenti-overlay">
         <div class="modal studenti-modal">
             <div class="modal-header">
                 <h3 class="modal-title" id="studenti-modal-title">👥 Elenco Studenti</h3>
                 <button class="modal-close" onclick="chiudiModalStudenti()">✕</button>
             </div>
-            <div class="modal-body" id="studenti-modal-body" style="max-height:70vh;overflow-y:auto;">
-                <!-- Popolato da JS -->
+            <div class="modal-body" id="studenti-modal-body" style="max-height:70vh;overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <!-- ═══════ MODAL DETTAGLIO RIPETIZIONE (Docente) ═══════ -->
+    <div class="modal-overlay" id="dettaglio-rip-overlay">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Dettaglio Ripetizione</h3>
+                <button class="modal-close" onclick="chiudiDettaglioRipetizione()">✕</button>
+            </div>
+            <div class="modal-body" id="dettaglio-rip-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="chiudiDettaglioRipetizione()">Chiudi</button>
             </div>
         </div>
     </div>
