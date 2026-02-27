@@ -337,13 +337,21 @@ async function apriModalStudenti() {
     }
 
     // Firestore "in" query supporta max 30 valori (più che sufficienti)
-    const snapshot = await db.collection("studenti")
-      .where("classe", "in", classi)
-      .get();
+    // Cerchiamo sia nel campo "classe" (vecchi dati) sia nell'array "classi" (nuovi dati)
+    // Per semplicità: carichiamo tutti gli studenti e filtriamo client-side
+    const snapshot = await db.collection("studenti").orderBy("cognome").get();
 
     const studenti = [];
     snapshot.forEach(doc => {
-      studenti.push({ id: doc.id, ...doc.data() });
+      const s = { id: doc.id, ...doc.data() };
+      // Raccogli tutte le classi dello studente (compatibile vecchi e nuovi dati)
+      const classiStudente = (s.classi && Array.isArray(s.classi) && s.classi.length > 0)
+        ? s.classi.filter(c => c)
+        : [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
+      // Lo studente è nel risultato se almeno una sua classe è tra quelle cercate
+      if (classiStudente.some(c => classi.includes(c))) {
+        studenti.push(s);
+      }
     });
 
     // Raggruppa per classe
@@ -459,14 +467,18 @@ async function copiaEmailStudenti() {
   if (classi.length === 0) return;
 
   try {
-    const snapshot = await db.collection("studenti")
-      .where("classe", "in", classi)
-      .get();
+    const snapshot = await db.collection("studenti").get();
 
     const emails = [];
     snapshot.forEach(doc => {
-      const email = doc.data().email;
-      if (email && email.trim()) emails.push(email.trim());
+      const s = doc.data();
+      const classiStudente = (s.classi && Array.isArray(s.classi) && s.classi.length > 0)
+        ? s.classi.filter(c => c)
+        : [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
+      if (classiStudente.some(c => classi.includes(c))) {
+        const email = s.email;
+        if (email && email.trim()) emails.push(email.trim());
+      }
     });
 
     if (emails.length === 0) {
@@ -503,14 +515,15 @@ async function inviaEmailDaCalendario() {
   if (classi.length === 0) return;
 
   try {
-    const snapshot = await db.collection("studenti")
-      .where("classe", "in", classi)
-      .get();
+    const snapshot = await db.collection("studenti").get();
 
     const destinatari = [];
     snapshot.forEach(doc => {
       const s = doc.data();
-      if (s.email && s.email.trim()) {
+      const classiStudente = (s.classi && Array.isArray(s.classi) && s.classi.length > 0)
+        ? s.classi.filter(c => c)
+        : [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
+      if (classiStudente.some(c => classi.includes(c)) && s.email && s.email.trim()) {
         destinatari.push({
           nome: s.nome,
           cognome: s.cognome,
