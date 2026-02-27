@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anagrafica Studenti — Gestione Docenti</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:,">
+    <style>
+        /* ═══════════════════════════════════════════
+           ANAGRAFICA STUDENTI — STYLES
+           ═══════════════════════════════════════════ */
+
+        /* ── Toolbar ── */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+        .search-box {
+            position: relative;
+            min-width: 260px;
+            flex: 1;
+            max-width: 400px;
+        }
+        .search-box .input {
+            padding-left: 38px;
+        }
+        .search-box-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+        .filter-select {
+            min-width: 150px;
+        }
+
+        /* ── Stats row ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            background: #FFFFFF;
+            border: 1px solid #DDD9D0;
+            border-radius: 12px;
+            padding: 20px 24px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(27, 67, 50, 0.08);
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+        }
+        .stat-card:nth-child(1)::before { background: #1B4332; }
+        .stat-card:nth-child(2)::before { background: #1565C0; }
+        .stat-card:nth-child(3)::before { background: #BC6C25; }
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+        .stat-card:nth-child(1) .stat-icon { background: #D8F3DC; color: #1B4332; }
+        .stat-card:nth-child(2) .stat-icon { background: #E3F2FD; color: #1565C0; }
+        .stat-card:nth-child(3) .stat-icon { background: #FEFAE0; color: #BC6C25; }
+        .stat-label {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #7A7A7A;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .stat-value {
+            font-family: 'Lora', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1B4332;
+            line-height: 1;
+        }
+
+        /* ── Tabella studenti ── */
+        .table-card {
+            background: #FFFFFF;
+            border: 1px solid #DDD9D0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .table-card .table {
+            margin: 0;
+        }
+        .studente-nome-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .studente-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Lora', serif;
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .studente-avatar.minore {
+            background: var(--accent);
+        }
+        .studente-nome-text {
+            display: flex;
+            flex-direction: column;
+        }
+        .studente-nome-text strong {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .studente-nome-text small {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .badge-classe-table {
+            background: #E3F2FD;
+            color: #1565C0;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(21, 101, 192, 0.2);
+            display: inline-block;
+        }
+        .badge-minore {
+            background: #FEFAE0;
+            color: #BC6C25;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(188, 108, 37, 0.2);
+            display: inline-block;
+            margin-left: 6px;
+        }
+        .contatto-cell {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .contatto-cell a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .contatto-cell a:hover {
+            text-decoration: underline;
+        }
+        .azioni-cell {
+            display: flex;
+            gap: 6px;
+        }
+        .btn-action {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-white);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            transition: var(--transition);
+        }
+        .btn-action:hover {
+            background: var(--bg);
+        }
+        .btn-action.edit:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .btn-action.delete:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+        .table-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border-light);
+            font-size: 13px;
+            color: var(--text-light);
+        }
+
+        /* ── Sezione Genitore nel Modal ── */
+        .genitore-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--accent-light);
+            border: 1px solid rgba(188, 108, 37, 0.2);
+            border-radius: var(--radius-sm);
+        }
+        .genitore-section-title {
+            font-family: 'Lora', serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .genitore-toggle-info {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 2px;
+        }
+
+        /* ── Modal Wider ── */
+        .modal-wide {
+            max-width: 640px;
+        }
+
+        /* ── Conferma Eliminazione ── */
+        .confirm-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text);
+        }
+        .confirm-text strong {
+            color: var(--danger);
+        }
+
+        /* ── Import Box ── */
+        .import-box {
+            margin-top: 12px;
+            padding: 16px;
+            background: var(--bg);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .import-box:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .import-box-icon { font-size: 28px; margin-bottom: 6px; }
+        .import-box-text { font-size: 13px; color: var(--text-light); }
+
+        /* ── Responsive ── */
+        @media (max-width: 1100px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .toolbar-left { flex-direction: column; }
+            .search-box { max-width: 100%; min-width: auto; }
+            .azioni-cell { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="page-body">
+
+            <!-- STATS -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon">🎓</div>
+                    <div class="stat-label">Totale Studenti</div>
+                    <div class="stat-value" id="stat-totale">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏫</div>
+                    <div class="stat-label">Classi Attive</div>
+                    <div class="stat-value" id="stat-classi">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">👶</div>
+                    <div class="stat-label">Studenti Minorenni</div>
+                    <div class="stat-value" id="stat-minorenni">—</div>
+                </div>
+            </div>
+
+            <!-- TOOLBAR -->
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <div class="search-box">
+                        <span class="search-box-icon">🔍</span>
+                        <input type="text" class="input" id="searchInput" placeholder="Cerca studente...">
+                    </div>
+                    <select class="select filter-select" id="filterClasse">
+                        <option value="">Tutte le classi</option>
+                    </select>
+                </div>
+                <div class="toolbar-right" style="display:flex;gap:10px;">
+                    <button class="btn btn-primary" id="btnAggiungi" onclick="apriModalNuovo()">
+                        ➕ Nuovo Studente
+                    </button>
+                </div>
+            </div>
+
+            <!-- TABELLA -->
+            <div class="table-card">
+                <div class="table-wrapper">
+                    <table class="table" id="tabellaStudenti">
+                        <thead>
+                            <tr>
+                                <th>Studente</th>
+                                <th>Classe</th>
+                                <th>Contatti</th>
+                                <th>Genitore / Tutore</th>
+                                <th style="width:100px;text-align:center;">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentiBody">
+                            <!-- Popolato da JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-footer">
+                    <span id="tableCount">Caricamento...</span>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════
+         MODAL: AGGIUNGI / MODIFICA STUDENTE
+         ═══════════════════════════════════════════ -->
+    <div class="modal-overlay" id="modalStudente">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitolo">Nuovo Studente</h3>
+                <button class="modal-close" onclick="chiudiModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Dati Studente -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="sNome">Nome *</label>
+                        <input type="text" class="input" id="sNome" placeholder="Nome">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="sCognome">Cognome *</label>
+                        <input type="text" class="input" id="sCognome" placeholder="Cognome">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="sDataNascita">Data di Nascita</label>
+                        <input type="date" class="input" id="sDataNascita">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="sClasse">Classe</label>
+                        <select class="select" id="sClasse">
+                            <option value="">— Nessuna classe —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="sTelefono">Telefono</label>
+                        <input type="tel" class="input" id="sTelefono" placeholder="333 1234567">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="sEmail">Email</label>
+                        <input type="email" class="input" id="sEmail" placeholder="studente@email.it">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="sNote">Note</label>
+                    <textarea class="textarea" id="sNote" rows="2" placeholder="Note aggiuntive (DSA, allergie, ecc.)"></textarea>
+                </div>
+
+                <!-- Genitore / Tutore -->
+                <div class="genitore-section" id="genitoreSection">
+                    <div class="genitore-section-title">
+                        👨‍👩‍👦 Genitore / Tutore
+                        <span class="genitore-toggle-info" id="genitoreInfo">(compilare se studente minorenne)</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="gNome">Nome</label>
+                            <input type="text" class="input" id="gNome" placeholder="Nome genitore">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="gCognome">Cognome</label>
+                            <input type="text" class="input" id="gCognome" placeholder="Cognome genitore">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="gTelefono">Telefono</label>
+                            <input type="tel" class="input" id="gTelefono" placeholder="339 9998877">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="gEmail">Email</label>
+                            <input type="email" class="input" id="gEmail" placeholder="genitore@email.it">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="chiudiModal()">Annulla</button>
+                <button class="btn btn-primary" id="btnSalva" onclick="salvaStudente()">Salva Studente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         MODAL: CONFERMA ELIMINAZIONE
+         ═══════════════════════════════════════════ -->
+    <div class="modal-overlay" id="modalElimina">
+        <div class="modal" style="max-width:440px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Conferma Eliminazione</h3>
+                <button class="modal-close" onclick="chiudiModalElimina()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="confirm-text" id="eliminaText">
+                    Sei sicuro di voler eliminare questo studente?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="chiudiModalElimina()">Annulla</button>
+                <button class="btn btn-danger" id="btnConfermaElimina" onclick="confermaElimina()">Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/template.js"></script>
+    <script src="js/studenti.js"></script>
+</body>
+</html>
