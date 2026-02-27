@@ -10,754 +10,210 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="data:,">
     <style>
-        /* ═══ HEADER ANAGRAFICA ═══ */
-        .page-header-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 28px;
-        }
-
-        .page-header-bar h1 {
-            font-family: 'Lora', serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #1B4332;
-            margin: 0;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        /* ═══ RICERCA ═══ */
-        .search-box {
-            position: relative;
-        }
-
-        .search-box svg {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 18px;
-            height: 18px;
-            color: #888;
-            pointer-events: none;
-        }
-
-        .search-box input {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            padding: 10px 14px 10px 38px;
-            border: 1.5px solid #DDD9D0;
-            border-radius: 10px;
-            background: #fff;
-            width: 260px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            color: #333;
-        }
-
-        .search-box input:focus {
-            outline: none;
-            border-color: #1B4332;
-            box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.10);
-        }
-
-        .search-box input::placeholder {
-            color: #aaa;
-        }
-
-        /* ═══ BOTTONE NUOVO DOCENTE ═══ */
-        .btn-nuovo {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            padding: 10px 20px;
-            background: #1B4332;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.2s, transform 0.1s;
-        }
-
-        .btn-nuovo:hover {
-            background: #2D6A4F;
-        }
-
-        .btn-nuovo:active {
-            transform: scale(0.97);
-        }
-
-        .btn-nuovo svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* ═══ CONTATORE ═══ */
-        .docenti-count {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.9rem;
-            color: #888;
-            margin-bottom: 16px;
-        }
-
-        /* ═══ GRIGLIA CARD ═══ */
-        .docenti-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            gap: 20px;
-        }
-
-        /* ═══ CARD DOCENTE ═══ */
-        .docente-card {
-            background: #fff;
-            border: 1.5px solid #DDD9D0;
-            border-radius: 12px;
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            transition: box-shadow 0.2s, border-color 0.2s;
-        }
-
-        .docente-card:hover {
-            box-shadow: 0 4px 16px rgba(27, 67, 50, 0.08);
-            border-color: #1B4332;
-        }
-
-        .card-top {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: #D8F3DC;
-            color: #1B4332;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Lora', serif;
-            font-weight: 700;
-            font-size: 1.1rem;
-            flex-shrink: 0;
-            letter-spacing: 0.5px;
-        }
-
-        .card-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .card-info h3 {
-            font-family: 'Lora', serif;
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: #1B4332;
-            margin: 0 0 3px 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .card-laurea {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.85rem;
-            color: #888;
-            margin: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* ═══ BADGE MATERIE ═══ */
-        .card-materie {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .badge-materia {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 20px;
-            background: #FEFAE0;
-            color: #BC6C25;
-            border: 1px solid #BC6C25;
-            white-space: nowrap;
-        }
-
-        /* ═══ CONTATTI ═══ */
-        .card-contatti {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .contatto-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.9rem;
-            color: #555;
-        }
-
-        .contatto-row svg {
-            width: 16px;
-            height: 16px;
-            color: #888;
-            flex-shrink: 0;
-        }
-
-        .contatto-row span {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* ═══ AZIONI CARD ═══ */
-        .card-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: auto;
-            padding-top: 8px;
-            border-top: 1px solid #EDE9E3;
-        }
-
-        .btn-action {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 600;
-            padding: 7px 16px;
-            border-radius: 8px;
-            border: 1.5px solid transparent;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .btn-action svg {
-            width: 15px;
-            height: 15px;
-        }
-
-        .btn-edit {
-            background: #D8F3DC;
-            color: #1B4332;
-            border-color: #1B4332;
-        }
-
-        .btn-edit:hover {
-            background: #1B4332;
-            color: #fff;
-        }
-
-        .btn-delete {
-            background: #fff;
-            color: #c0392b;
-            border-color: #e74c3c;
-        }
-
-        .btn-delete:hover {
-            background: #e74c3c;
-            color: #fff;
-        }
-
-        /* ═══ STATO VUOTO ═══ */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #888;
-        }
-
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
-            color: #ccc;
-            margin-bottom: 16px;
-        }
-
-        .empty-state h3 {
-            font-family: 'Lora', serif;
-            font-size: 1.2rem;
-            color: #888;
-            margin: 0 0 8px 0;
-        }
-
-        .empty-state p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            margin: 0;
-        }
-
-        /* ═══ MODAL ═══ */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal {
-            background: #fff;
-            border-radius: 16px;
-            width: 95%;
-            max-width: 540px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-            animation: modalIn 0.25s ease-out;
-        }
-
-        @keyframes modalIn {
-            from { opacity: 0; transform: translateY(20px) scale(0.97); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 22px 24px 0 24px;
-        }
-
-        .modal-header h2 {
-            font-family: 'Lora', serif;
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #1B4332;
-            margin: 0;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            color: #888;
-            border-radius: 8px;
-            transition: background 0.2s;
-        }
-
-        .modal-close:hover {
-            background: #f0ece6;
-            color: #333;
-        }
-
-        .modal-close svg {
-            width: 22px;
-            height: 22px;
-        }
-
-        .modal-body {
-            padding: 20px 24px 24px 24px;
-        }
-
-        /* ═══ FORM FIELDS ═══ */
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .form-group-modal {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .form-group-modal.full-width {
-            grid-column: 1 / -1;
-        }
-
-        .form-group-modal label {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #555;
-        }
-
-        .form-group-modal label .required {
-            color: #e74c3c;
-            margin-left: 2px;
-        }
-
-        .form-group-modal input {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            padding: 10px 12px;
-            border: 1.5px solid #DDD9D0;
-            border-radius: 8px;
-            background: #FAFAF8;
-            color: #333;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .form-group-modal input:focus {
-            outline: none;
-            border-color: #1B4332;
-            box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.10);
-            background: #fff;
-        }
-
-        .form-group-modal input.error {
-            border-color: #e74c3c;
-            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.10);
-        }
-
-        .form-group-modal .hint {
-            font-size: 0.78rem;
-            color: #aaa;
-            margin-top: 1px;
-        }
-
-        .form-group-modal .error-msg {
-            font-size: 0.8rem;
-            color: #e74c3c;
-            display: none;
-        }
-
-        .form-group-modal .error-msg.visible {
-            display: block;
-        }
-
-        /* ═══ BOTTONI MODAL ═══ */
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 22px;
-        }
-
-        .btn-cancel {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            padding: 10px 20px;
-            background: #EFEDE8;
-            color: #555;
-            border: 1.5px solid #DDD9D0;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-cancel:hover {
-            background: #E3E0D8;
-        }
-
-        .btn-save {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            padding: 10px 24px;
-            background: #1B4332;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-        }
-
-        .btn-save:hover {
-            background: #2D6A4F;
-        }
-
-        .btn-save:active {
-            transform: scale(0.97);
-        }
-
-        .btn-save:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        /* ═══ DIALOG CONFERMA ═══ */
-        .confirm-dialog .modal {
-            max-width: 400px;
-            text-align: center;
-        }
-
-        .confirm-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: #fdecea;
-            color: #e74c3c;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-        }
-
-        .confirm-icon svg {
-            width: 28px;
-            height: 28px;
-        }
-
-        .confirm-dialog p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            color: #555;
-            margin: 0 0 24px 0;
-            line-height: 1.5;
-        }
-
-        .confirm-dialog p strong {
-            color: #333;
-        }
-
-        .confirm-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .btn-danger {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            padding: 10px 24px;
-            background: #e74c3c;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-danger:hover {
-            background: #c0392b;
-        }
-
-        /* ═══ TOAST ═══ */
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 500;
-            padding: 14px 22px;
-            border-radius: 10px;
-            color: #fff;
-            z-index: 2000;
-            transform: translateY(100px);
-            opacity: 0;
-            transition: all 0.35s ease;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .toast.show {
-            transform: translateY(0);
-            opacity: 1;
-        }
-
-        .toast.success {
-            background: #1B4332;
-        }
-
-        .toast.error {
-            background: #e74c3c;
-        }
-
-        /* ═══ LOADING ═══ */
-        .loading-spinner {
-            text-align: center;
-            padding: 60px 20px;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #DDD9D0;
-            border-top-color: #1B4332;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 12px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-spinner p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 0.95rem;
-            color: #888;
-        }
-
-        /* ═══ RESPONSIVE ═══ */
-        @media (max-width: 768px) {
-            .page-header-bar {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .header-actions {
-                width: 100%;
-            }
-            .search-box input {
-                width: 100%;
-            }
-            .docenti-grid {
-                grid-template-columns: 1fr;
-            }
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+        .page-header-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px}
+        .page-header-bar h1{font-family:'Lora',serif;font-size:1.8rem;font-weight:700;color:#1B4332;margin:0}
+        .header-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+        .search-box{position:relative}
+        .search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:#888;pointer-events:none}
+        .search-box input{font-family:'Source Sans 3',sans-serif;font-size:.95rem;padding:10px 14px 10px 38px;border:1.5px solid #DDD9D0;border-radius:10px;background:#fff;width:260px;transition:border-color .2s,box-shadow .2s;color:#333}
+        .search-box input:focus{outline:none;border-color:#1B4332;box-shadow:0 0 0 3px rgba(27,67,50,.10)}
+        .search-box input::placeholder{color:#aaa}
+        .btn-nuovo{font-family:'Source Sans 3',sans-serif;font-size:.95rem;font-weight:600;padding:10px 20px;background:#1B4332;color:#fff;border:none;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .2s,transform .1s}
+        .btn-nuovo:hover{background:#2D6A4F}
+        .btn-nuovo:active{transform:scale(.97)}
+        .btn-nuovo svg{width:18px;height:18px}
+        .docenti-count{font-family:'Source Sans 3',sans-serif;font-size:.9rem;color:#888;margin-bottom:16px}
+        .docenti-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px}
+        .docente-card{background:#fff;border:1.5px solid #DDD9D0;border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:14px;transition:box-shadow .2s,border-color .2s}
+        .docente-card:hover{box-shadow:0 4px 16px rgba(27,67,50,.08);border-color:#1B4332}
+        .card-top{display:flex;align-items:center;gap:14px}
+        .avatar{width:50px;height:50px;border-radius:50%;background:#D8F3DC;color:#1B4332;display:flex;align-items:center;justify-content:center;font-family:'Lora',serif;font-weight:700;font-size:1.1rem;flex-shrink:0;letter-spacing:.5px}
+        .card-info{flex:1;min-width:0}
+        .card-info h3{font-family:'Lora',serif;font-size:1.15rem;font-weight:600;color:#1B4332;margin:0 0 3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .card-laurea{font-family:'Source Sans 3',sans-serif;font-size:.85rem;color:#888;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .card-materie{display:flex;flex-wrap:wrap;gap:6px}
+        .badge-materia{font-family:'Source Sans 3',sans-serif;font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:20px;background:#FEFAE0;color:#BC6C25;border:1px solid #BC6C25;white-space:nowrap}
+        /* ═══ TARIFFE CARD ═══ */
+        .card-tariffe{display:flex;gap:10px}
+        .card-tariffa-box{flex:1;padding:10px 12px;border-radius:8px;text-align:center}
+        .card-tariffa-box.lezione{background:#E3F2FD;border:1px solid rgba(21,101,192,.2)}
+        .card-tariffa-box.ripetizione{background:#FFF3E0;border:1px solid rgba(230,81,0,.2)}
+        .card-tariffa-label{font-family:'Source Sans 3',sans-serif;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+        .card-tariffa-box.lezione .card-tariffa-label{color:#1565C0}
+        .card-tariffa-box.ripetizione .card-tariffa-label{color:#E65100}
+        .card-tariffa-valore{font-family:'Lora',serif;font-size:20px;font-weight:700}
+        .card-tariffa-box.lezione .card-tariffa-valore{color:#0D47A1}
+        .card-tariffa-box.ripetizione .card-tariffa-valore{color:#BF360C}
+        .card-tariffa-unita{font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#888;margin-top:2px}
+        .card-contatti{display:flex;flex-direction:column;gap:6px}
+        .contatto-row{display:flex;align-items:center;gap:8px;font-family:'Source Sans 3',sans-serif;font-size:.9rem;color:#555}
+        .contatto-row svg{width:16px;height:16px;color:#888;flex-shrink:0}
+        .contatto-row span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .card-actions{display:flex;gap:10px;margin-top:auto;padding-top:8px;border-top:1px solid #EDE9E3}
+        .btn-action{font-family:'Source Sans 3',sans-serif;font-size:.85rem;font-weight:600;padding:7px 16px;border-radius:8px;border:1.5px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s}
+        .btn-action svg{width:15px;height:15px}
+        .btn-edit{background:#D8F3DC;color:#1B4332;border-color:#1B4332}
+        .btn-edit:hover{background:#1B4332;color:#fff}
+        .btn-delete{background:#fff;color:#c0392b;border-color:#e74c3c}
+        .btn-delete:hover{background:#e74c3c;color:#fff}
+        .empty-state{text-align:center;padding:60px 20px;color:#888}
+        .empty-state svg{width:64px;height:64px;color:#ccc;margin-bottom:16px}
+        .empty-state h3{font-family:'Lora',serif;font-size:1.2rem;color:#888;margin:0 0 8px 0}
+        .empty-state p{font-family:'Source Sans 3',sans-serif;font-size:.95rem;margin:0}
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center}
+        .modal-overlay.active{display:flex}
+        .modal{background:#fff;border-radius:16px;width:95%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .25s ease-out}
+        @keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+        .modal-header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0 24px}
+        .modal-header h2{font-family:'Lora',serif;font-size:1.35rem;font-weight:700;color:#1B4332;margin:0}
+        .modal-close{background:none;border:none;cursor:pointer;padding:4px;color:#888;border-radius:8px;transition:background .2s}
+        .modal-close:hover{background:#f0ece6;color:#333}
+        .modal-close svg{width:22px;height:22px}
+        .modal-body{padding:20px 24px 24px 24px}
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .form-group-modal{display:flex;flex-direction:column;gap:5px}
+        .form-group-modal.full-width{grid-column:1/-1}
+        .form-group-modal label{font-family:'Source Sans 3',sans-serif;font-size:.85rem;font-weight:600;color:#555}
+        .form-group-modal label .required{color:#e74c3c;margin-left:2px}
+        .form-group-modal input{font-family:'Source Sans 3',sans-serif;font-size:.95rem;padding:10px 12px;border:1.5px solid #DDD9D0;border-radius:8px;background:#FAFAF8;color:#333;transition:border-color .2s,box-shadow .2s}
+        .form-group-modal input:focus{outline:none;border-color:#1B4332;box-shadow:0 0 0 3px rgba(27,67,50,.10);background:#fff}
+        .form-group-modal input.error{border-color:#e74c3c;box-shadow:0 0 0 3px rgba(231,76,60,.10)}
+        .form-group-modal .hint{font-size:.78rem;color:#aaa;margin-top:1px}
+        .form-group-modal .error-msg{font-size:.8rem;color:#e74c3c;display:none}
+        .form-group-modal .error-msg.visible{display:block}
+        .form-section-label{grid-column:1/-1;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:700;color:#1B4332;text-transform:uppercase;letter-spacing:.5px;padding:12px 0 4px;border-top:1px solid #EDE9E3;margin-top:4px}
+        .form-tariffa-input{position:relative}
+        .form-tariffa-input .euro-prefix{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-family:'Source Sans 3',sans-serif;font-size:15px;font-weight:600;color:#888;pointer-events:none}
+        .form-tariffa-input input{padding-left:28px !important}
+        .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+        .btn-cancel{font-family:'Source Sans 3',sans-serif;font-size:.95rem;font-weight:600;padding:10px 20px;background:#EFEDE8;color:#555;border:1.5px solid #DDD9D0;border-radius:10px;cursor:pointer;transition:background .2s}
+        .btn-cancel:hover{background:#E3E0D8}
+        .btn-save{font-family:'Source Sans 3',sans-serif;font-size:.95rem;font-weight:600;padding:10px 24px;background:#1B4332;color:#fff;border:none;border-radius:10px;cursor:pointer;transition:background .2s,transform .1s}
+        .btn-save:hover{background:#2D6A4F}
+        .btn-save:active{transform:scale(.97)}
+        .btn-save:disabled{opacity:.6;cursor:not-allowed}
+        .confirm-dialog .modal{max-width:400px;text-align:center}
+        .confirm-icon{width:56px;height:56px;border-radius:50%;background:#fdecea;color:#e74c3c;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+        .confirm-icon svg{width:28px;height:28px}
+        .confirm-dialog p{font-family:'Source Sans 3',sans-serif;font-size:.95rem;color:#555;margin:0 0 24px 0;line-height:1.5}
+        .confirm-dialog p strong{color:#333}
+        .confirm-actions{display:flex;gap:10px;justify-content:center}
+        .btn-danger{font-family:'Source Sans 3',sans-serif;font-size:.95rem;font-weight:600;padding:10px 24px;background:#e74c3c;color:#fff;border:none;border-radius:10px;cursor:pointer;transition:background .2s}
+        .btn-danger:hover{background:#c0392b}
+        .toast{position:fixed;bottom:24px;right:24px;font-family:'Source Sans 3',sans-serif;font-size:.95rem;font-weight:500;padding:14px 22px;border-radius:10px;color:#fff;z-index:2000;transform:translateY(100px);opacity:0;transition:all .35s ease;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+        .toast.show{transform:translateY(0);opacity:1}
+        .toast.success{background:#1B4332}
+        .toast.error{background:#e74c3c}
+        .loading-spinner{text-align:center;padding:60px 20px}
+        .spinner{width:40px;height:40px;border:4px solid #DDD9D0;border-top-color:#1B4332;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading-spinner p{font-family:'Source Sans 3',sans-serif;font-size:.95rem;color:#888}
+        @media(max-width:768px){.page-header-bar{flex-direction:column;align-items:flex-start}.header-actions{width:100%}.search-box input{width:100%}.docenti-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
-
-    <!-- NESSUN <aside> e <header> statico! Li crea initPage() da template.js -->
-
-    <!-- MAIN CONTENT -->
     <main class="main-content">
         <div class="page-body">
-
-            <!-- ═══ HEADER ANAGRAFICA ═══ -->
             <div class="page-header-bar">
                 <h1>Anagrafica Docenti</h1>
                 <div class="header-actions">
                     <div class="search-box">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" id="search-input" placeholder="Cerca docente..." autocomplete="off">
                     </div>
                     <button class="btn-nuovo" id="btn-nuovo-docente">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         Nuovo Docente
                     </button>
                 </div>
             </div>
-
-            <!-- ═══ CONTATORE ═══ -->
             <p class="docenti-count" id="docenti-count"></p>
-
-            <!-- ═══ LOADING ═══ -->
-            <div class="loading-spinner" id="loading">
-                <div class="spinner"></div>
-                <p>Caricamento docenti...</p>
-            </div>
-
-            <!-- ═══ STATO VUOTO ═══ -->
+            <div class="loading-spinner" id="loading"><div class="spinner"></div><p>Caricamento docenti...</p></div>
             <div class="empty-state" id="empty-state" style="display:none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 <h3>Nessun docente trovato</h3>
                 <p>Aggiungi il primo docente cliccando "Nuovo Docente"</p>
             </div>
-
-            <!-- ═══ GRIGLIA CARD ═══ -->
             <div class="docenti-grid" id="docenti-grid"></div>
-
         </div>
     </main>
 
-    <!-- ═══════════════════════════════════ -->
-    <!-- MODAL NUOVO / MODIFICA DOCENTE     -->
-    <!-- ═══════════════════════════════════ -->
+    <!-- MODAL NUOVO / MODIFICA DOCENTE -->
     <div class="modal-overlay" id="modal-docente">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="modal-title">Nuovo Docente</h2>
                 <button class="modal-close" id="modal-close" aria-label="Chiudi">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
             <div class="modal-body">
                 <form id="form-docente" novalidate>
                     <div class="form-grid">
-                        <!-- Nome -->
                         <div class="form-group-modal">
                             <label>Nome <span class="required">*</span></label>
                             <input type="text" id="field-nome" placeholder="Es. Mario" maxlength="50">
                             <span class="error-msg" id="err-nome">Il nome è obbligatorio</span>
                         </div>
-
-                        <!-- Cognome -->
                         <div class="form-group-modal">
                             <label>Cognome <span class="required">*</span></label>
                             <input type="text" id="field-cognome" placeholder="Es. Rossi" maxlength="50">
                             <span class="error-msg" id="err-cognome">Il cognome è obbligatorio</span>
                         </div>
-
-                        <!-- Cellulare -->
                         <div class="form-group-modal">
                             <label>Cellulare</label>
                             <input type="tel" id="field-cellulare" placeholder="Es. 333 1234567" maxlength="20">
                         </div>
-
-                        <!-- Email -->
                         <div class="form-group-modal">
                             <label>Email</label>
                             <input type="email" id="field-email" placeholder="Es. mario@email.it" maxlength="80">
                         </div>
-
-                        <!-- Laurea -->
                         <div class="form-group-modal full-width">
                             <label>Laurea</label>
                             <input type="text" id="field-laurea" placeholder="Es. Lettere e Filosofia" maxlength="100">
                         </div>
-
-                        <!-- Materie -->
                         <div class="form-group-modal full-width">
                             <label>Materie</label>
                             <input type="text" id="field-materie" placeholder="Es. Italiano, Storia, Geografia" maxlength="200">
                             <span class="hint">Separa le materie con una virgola</span>
                         </div>
 
-                        <!-- Username -->
+                        <!-- ═══ SEZIONE TARIFFE ═══ -->
+                        <div class="form-section-label">💰 Tariffe</div>
+                        <div class="form-group-modal">
+                            <label>Tariffa Lezione</label>
+                            <div class="form-tariffa-input">
+                                <span class="euro-prefix">€</span>
+                                <input type="number" id="field-tariffa-lezione" placeholder="10" min="0" step="1" value="10">
+                            </div>
+                            <span class="hint">Per lezione</span>
+                        </div>
+                        <div class="form-group-modal">
+                            <label>Tariffa Ripetizione</label>
+                            <div class="form-tariffa-input">
+                                <span class="euro-prefix">€</span>
+                                <input type="number" id="field-tariffa-ripetizione" placeholder="10" min="0" step="1" value="10">
+                            </div>
+                            <span class="hint">Per ora di ripetizione</span>
+                        </div>
+                        <div class="form-group-modal full-width">
+                            <label>Note tariffa</label>
+                            <input type="text" id="field-note-tariffa" placeholder="Es. Maggiorazione per lezioni serali" maxlength="200">
+                        </div>
+
+                        <!-- ═══ SEZIONE CREDENZIALI ═══ -->
+                        <div class="form-section-label">🔐 Credenziali di accesso</div>
                         <div class="form-group-modal">
                             <label>Username <span class="required">*</span></label>
                             <input type="text" id="field-username" placeholder="Es. mrossi" maxlength="30" autocomplete="off">
                             <span class="error-msg" id="err-username">Lo username è obbligatorio</span>
                         </div>
-
-                        <!-- Password -->
                         <div class="form-group-modal">
                             <label>Password <span class="required">*</span></label>
                             <input type="text" id="field-password" placeholder="Es. password123" maxlength="50" autocomplete="off">
                             <span class="error-msg" id="err-password">La password è obbligatoria</span>
                         </div>
                     </div>
-
                     <div class="modal-actions">
                         <button type="button" class="btn-cancel" id="btn-cancel">Annulla</button>
                         <button type="submit" class="btn-save" id="btn-save">Salva Docente</button>
@@ -767,17 +223,12 @@
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════ -->
-    <!-- DIALOG CONFERMA ELIMINAZIONE       -->
-    <!-- ═══════════════════════════════════ -->
+    <!-- DIALOG CONFERMA ELIMINAZIONE -->
     <div class="modal-overlay confirm-dialog" id="dialog-elimina">
         <div class="modal">
             <div class="modal-body" style="padding: 32px 24px;">
                 <div class="confirm-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                 </div>
                 <h2 style="font-family:'Lora',serif;font-size:1.2rem;color:#333;margin:0 0 8px;">Eliminare questo docente?</h2>
                 <p>Stai per eliminare <strong id="delete-name"></strong>. Questa azione è irreversibile.</p>
@@ -789,10 +240,8 @@
         </div>
     </div>
 
-    <!-- ═══ TOAST NOTIFICHE ═══ -->
     <div class="toast" id="toast"></div>
 
-    <!-- ═══ SCRIPTS ═══ -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="js/firebase-config.js"></script>
