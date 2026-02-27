@@ -1,78 +1,77 @@
 // ============================================================
-// calendario.js — Orario Scolastico v2.1
+// calendario.js — Orario Scolastico v3.0
 // ============================================================
-// Gestisce la visualizzazione e modifica dell'orario settimanale.
+// NOVITÀ v3.0:
+// - Griglia unificata mattina + pomeriggio (con separatore visivo)
+// - Ripetizioni integrate nella stessa griglia (colore arancione)
+// - Navigazione settimanale per le ripetizioni
+// - Vista Aula mostra occupazione completa (lezioni + ripetizioni)
+// - Modal scelta: aggiungi Lezione o Ripetizione
+// - CRUD ripetizioni direttamente dal calendario
+// - Elenco studenti considera anche classi dalle ripetizioni
 //
-// NOVITÀ v2.1:
-// - Pulsante "Elenco Studenti" nel calendario docente
-// - Modal con studenti raggruppati per classe
-// - Copia rapida email per invio link DAD
-//
-// NOVITÀ v2.0:
-// - Vista multi-modalità: Docente / Aula / Classe
-// - Modifica lezione (click su cella → modal precompilata)
-// - Dropdown Aula e Classe dalla rispettive collezioni Firestore
-// - Validazione conflitto aula (stessa aula, stesso giorno+slot)
-// - Info contestuali nelle celle in base alla vista attiva
-//
-// - Admin (calendario.html): seleziona docente/aula/classe, aggiunge/modifica/rimuove
-// - Docente (mio-orario.html): sola lettura del proprio orario + elenco studenti
-//
-// Dipende da: utils.js (GIORNI, caricaImpostazioniOrari, calcolaFasceOrarie)
+// Dipende da: utils.js (GIORNI, calcolaImpostazioniOrari,
+//   calcolaFasceOrarie, calcolaFasceUnificate, trovaSlotPerOra,
+//   calcolaSettimanaDate, giornoFromData, timeToMinutes, minutesToTime)
 // ============================================================
 
 // ── Stato globale ──
 let isAdmin = false;
 let isDocente = false;
-let currentDocenteId = null;       // ID docente selezionato (admin) o loggato (docente)
-let impostazioniOrari = {};        // Mappa giorno → impostazioni da Firestore
-let fascePerGiorno = {};           // Mappa giorno → array di fasce calcolate
-let maxFasce = 0;                  // Numero massimo di fasce tra tutti i giorni
-let lezioniCorrente = [];          // Array di lezioni caricate da Firestore
-let docentiLista = [];             // Lista docenti per il dropdown admin
-let auleLista = [];                // Lista aule da Firestore
-let classiLista = [];              // Lista classi da Firestore
+let currentDocenteId = null;
+let impostazioniOrari = {};
+let fascePerGiorno = {};           // giorno → { mattina, pomeriggio, tutte, numMattina, numPomeriggio }
+let maxFasceTotali = 0;            // max(mattina+pomeriggio) tra tutti i giorni
+let maxFasceMattina = 0;
+let maxFascePomeriggio = 0;
+let lezioniCorrente = [];          // lezioni da orarioScolastico
+let ripetizioniCorrente = [];      // ripetizioni da collezione ripetizioni (per la settimana corrente)
+let docentiLista = [];
+let auleLista = [];
+let classiLista = [];
 
 // ── Vista corrente (solo admin) ──
-let vistaCorrente = "docente";     // "docente" | "aula" | "classe"
-let entitaSelezionata = "";        // ID docente / nome aula / nome classe
+let vistaCorrente = "docente";
+let entitaSelezionata = "";
+
+// ── Navigazione settimanale ──
+let weekOffset = 0;
+let settimanaDate = [];            // 5 stringhe "YYYY-MM-DD" (lun→ven)
 
 // ── Modalità modal ──
-let modalMode = "add";             // "add" | "edit"
-let editingLezioneId = null;       // ID del documento in modifica
+let modalMode = "add";
+let modalTipo = "lezione";         // "lezione" | "ripetizione"
+let editingLezioneId = null;
+let editingRipetizioneId = null;
 
 // ── Riferimenti DOM ──
 let orarioContainer;
+
+// ── Mappa docenti per nome veloce ──
+let mappaDocenti = {};
 
 // ============================================================
 // INIZIALIZZAZIONE
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // Controlla autenticazione
   checkAuth();
 
-  // Rileva ruolo
   const ruolo = getRole();
   isAdmin = ruolo === "admin";
   isDocente = ruolo === "docente";
 
-  // Pagina corrente
   const pagina = window.location.pathname.split("/").pop();
 
-  // Sicurezza: se docente tenta di accedere a calendario.html → redirect
   if (pagina === "calendario.html" && !isAdmin) {
     window.location.href = "mio-orario.html";
     return;
   }
-
-  // Se admin tenta di accedere a mio-orario.html → redirect
   if (pagina === "mio-orario.html" && isAdmin) {
     window.location.href = "calendario.html";
     return;
   }
 
-  // Init pagina (sidebar + header)
   if (isAdmin) {
     initPage("Orario Scolastico");
   } else {
@@ -83,41 +82,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Riferimenti DOM
   orarioContainer = document.getElementById("orario-container");
 
-  // ──── 1. Carica impostazioni orari da Firestore ────
+  // 1. Carica impostazioni orari
   try {
     impostazioniOrari = await caricaImpostazioniOrari();
   } catch (err) {
     console.error("Errore caricamento impostazioni:", err);
   }
 
-  // ──── 2. Calcola fasce per ogni giorno ────
-  maxFasce = 0;
+  // 2. Calcola fasce unificate per ogni giorno
+  maxFasceMattina = 0;
+  maxFascePomeriggio = 0;
+  maxFasceTotali = 0;
+
   GIORNI.forEach(giorno => {
     const imp = impostazioniOrari[giorno];
-    if (imp) {
-      fascePerGiorno[giorno] = calcolaFasceOrarie(
-        imp.mattina_oraInizio,
-        imp.mattina_durataLezione,
-        imp.mattina_numeroLezioni
-      );
-      if (fascePerGiorno[giorno].length > maxFasce) {
-        maxFasce = fascePerGiorno[giorno].length;
-      }
-    } else {
-      fascePerGiorno[giorno] = [];
-    }
+    const result = calcolaFasceUnificate(imp);
+    fascePerGiorno[giorno] = result;
+    if (result.numMattina > maxFasceMattina) maxFasceMattina = result.numMattina;
+    if (result.numPomeriggio > maxFascePomeriggio) maxFascePomeriggio = result.numPomeriggio;
+    const tot = result.numMattina + result.numPomeriggio;
+    if (tot > maxFasceTotali) maxFasceTotali = tot;
   });
 
-  // Se non ci sono impostazioni, mostra messaggio
-  if (maxFasce === 0) {
+  if (maxFasceMattina === 0 && maxFascePomeriggio === 0) {
     mostraEmpty("Nessuna impostazione orari trovata. Configura gli orari dalla pagina Impostazioni.");
     return;
   }
 
-  // ──── 3. Logica specifica per ruolo ────
+  // 3. Calcola settimana corrente
+  settimanaDate = calcolaSettimanaDate(weekOffset);
+
+  // 4. Init per ruolo
   if (isAdmin) {
     await initAdmin();
   } else {
@@ -156,51 +153,56 @@ async function initAdmin() {
     classiSnap.forEach(doc => {
       classiLista.push({ id: doc.id, ...doc.data() });
     });
-
   } catch (err) {
     console.error("Errore caricamento liste:", err);
   }
 
-  // Popola dropdown iniziale (vista docente)
+  // Mappa docenti
+  mappaDocenti = {};
+  docentiLista.forEach(d => {
+    mappaDocenti[d.id] = `${d.cognome} ${d.nome}`;
+  });
+
+  // Popola dropdown iniziale
   popolaDropdownEntita();
 
-  // Al cambio entità → carica orario
+  // Evento cambio entità
   selectEntita.addEventListener("change", async () => {
     entitaSelezionata = selectEntita.value;
-
-    // Bottone aggiungi: solo in vista docente e con docente selezionato
-    btnAggiungi.disabled = !(vistaCorrente === "docente" && entitaSelezionata);
+    btnAggiungi.disabled = !entitaSelezionata;
 
     if (entitaSelezionata) {
-      // In vista docente, salva il currentDocenteId
       if (vistaCorrente === "docente") {
         currentDocenteId = entitaSelezionata;
       }
       await caricaEmostraOrario();
-
-      // ★ Mostra/nascondi pulsante elenco studenti
       aggiornaBottoneStudenti();
     } else {
-      // ★ Nascondi pulsante studenti
       if (btnStudenti) btnStudenti.style.display = "none";
       mostraEmptyPerVista();
     }
   });
 
-  // Bottone aggiungi → apri modal in modalità add
+  // Bottone aggiungi → apri scelta tipo
   btnAggiungi.addEventListener("click", () => {
-    if (vistaCorrente !== "docente" || !entitaSelezionata) return;
-    currentDocenteId = entitaSelezionata;
-    apriModal("add");
+    if (!entitaSelezionata) return;
+    if (vistaCorrente === "docente") currentDocenteId = entitaSelezionata;
+    apriSceltaTipo();
   });
+
+  // Setup week navigation
+  setupWeekNav();
 
   // Setup modal
   setupModal();
 
   // Carica template email
-  await EmailModule.init();
+  if (typeof EmailModule !== "undefined") {
+    await EmailModule.init();
+  }
 
-  // Mostra stato iniziale
+  // Aggiorna label settimana e mostra stato iniziale
+  aggiornaLabelSettimana();
   mostraEmptyPerVista();
 }
 
@@ -216,13 +218,84 @@ async function initDocente() {
     return;
   }
 
+  // Carica docenti per mappa nomi (serve per vista)
+  try {
+    const docSnap = await db.collection("docenti").orderBy("cognome").get();
+    docentiLista = [];
+    docSnap.forEach(doc => {
+      docentiLista.push({ id: doc.id, ...doc.data() });
+    });
+    mappaDocenti = {};
+    docentiLista.forEach(d => {
+      mappaDocenti[d.id] = `${d.cognome} ${d.nome}`;
+    });
+  } catch (err) {
+    console.error("Errore caricamento docenti:", err);
+  }
+
+  // Setup week navigation
+  setupWeekNav();
+  aggiornaLabelSettimana();
+
   await caricaEmostraOrario();
 
-  // Carica template email
-  await EmailModule.init();
+  if (typeof EmailModule !== "undefined") {
+    await EmailModule.init();
+  }
 
-  // ★ Mostra pulsante elenco studenti per il docente
   aggiornaBottoneStudenti();
+}
+
+// ============================================================
+// NAVIGAZIONE SETTIMANALE
+// ============================================================
+
+function setupWeekNav() {
+  const btnPrev = document.getElementById("btn-prev-week");
+  const btnOggi = document.getElementById("btn-oggi-week");
+  const btnNext = document.getElementById("btn-next-week");
+
+  if (btnPrev) {
+    btnPrev.addEventListener("click", () => {
+      weekOffset--;
+      settimanaDate = calcolaSettimanaDate(weekOffset);
+      aggiornaLabelSettimana();
+      if (entitaSelezionata || isDocente) caricaEmostraOrario();
+    });
+  }
+  if (btnOggi) {
+    btnOggi.addEventListener("click", () => {
+      weekOffset = 0;
+      settimanaDate = calcolaSettimanaDate(weekOffset);
+      aggiornaLabelSettimana();
+      if (entitaSelezionata || isDocente) caricaEmostraOrario();
+    });
+  }
+  if (btnNext) {
+    btnNext.addEventListener("click", () => {
+      weekOffset++;
+      settimanaDate = calcolaSettimanaDate(weekOffset);
+      aggiornaLabelSettimana();
+      if (entitaSelezionata || isDocente) caricaEmostraOrario();
+    });
+  }
+}
+
+function aggiornaLabelSettimana() {
+  const label = document.getElementById("label-settimana");
+  if (!label || settimanaDate.length < 5) return;
+
+  const dLun = new Date(settimanaDate[0] + "T00:00:00");
+  const dVen = new Date(settimanaDate[4] + "T00:00:00");
+
+  let testo = dLun.getDate() + " " + MESI_BREVI[dLun.getMonth()];
+  if (dLun.getMonth() !== dVen.getMonth()) {
+    testo += " – " + dVen.getDate() + " " + MESI_BREVI[dVen.getMonth()];
+  } else {
+    testo += " – " + dVen.getDate();
+  }
+  testo += " " + dVen.getFullYear();
+  label.textContent = testo;
 }
 
 // ============================================================
@@ -235,40 +308,33 @@ function cambiaVista(nuovaVista) {
   vistaCorrente = nuovaVista;
   entitaSelezionata = "";
 
-  // Aggiorna bottoni vista
   document.querySelectorAll(".vista-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.vista === nuovaVista);
   });
 
-  // Aggiorna dropdown
   popolaDropdownEntita();
 
-  // Nascondi/mostra bottone aggiungi
   const btnAggiungi = document.getElementById("btn-aggiungi");
-  btnAggiungi.disabled = true;
-  btnAggiungi.style.display = (nuovaVista === "docente") ? "" : "none";
+  if (btnAggiungi) {
+    btnAggiungi.disabled = true;
+    // Il bottone aggiungi è sempre visibile, ma disabilitato se nessuna entità
+    btnAggiungi.textContent = nuovaVista === "docente" ? "➕ Aggiungi" : "➕ Aggiungi";
+  }
 
-  // ★ Nascondi pulsante studenti al cambio vista
   const btnStudenti = document.getElementById("btn-elenco-studenti");
   if (btnStudenti) btnStudenti.style.display = "none";
 
-  // Reset tabella
   mostraEmptyPerVista();
 }
 
 // ============================================================
-// ★ GESTIONE PULSANTE ELENCO STUDENTI
+// GESTIONE PULSANTE ELENCO STUDENTI
 // ============================================================
 
-/**
- * Mostra o nascondi il pulsante "Elenco Studenti"
- * Visibile quando: ci sono lezioni caricate (vista docente o classe, o docente loggato)
- */
 function aggiornaBottoneStudenti() {
   const btnStudenti = document.getElementById("btn-elenco-studenti");
   if (!btnStudenti) return;
 
-  // Mostra il pulsante se ci sono lezioni con classi assegnate
   const classiNelOrario = getClassiDalleLezioni();
   const mostra = classiNelOrario.length > 0 && (
     isDocente ||
@@ -280,18 +346,21 @@ function aggiornaBottoneStudenti() {
 }
 
 /**
- * Estrai le classi uniche dalle lezioni correnti
+ * Estrai le classi uniche dalle lezioni E ripetizioni correnti.
  */
 function getClassiDalleLezioni() {
   const classiSet = new Set();
   lezioniCorrente.forEach(l => {
     if (l.classe) classiSet.add(l.classe);
   });
+  ripetizioniCorrente.forEach(r => {
+    if (r.classe) classiSet.add(r.classe);
+  });
   return Array.from(classiSet).sort();
 }
 
 // ============================================================
-// ★ MODAL ELENCO STUDENTI
+// MODAL ELENCO STUDENTI (invariato nella logica)
 // ============================================================
 
 async function apriModalStudenti() {
@@ -301,19 +370,16 @@ async function apriModalStudenti() {
 
   if (!overlay || !body) return;
 
-  // Titolo contestuale
   if (isDocente) {
     title.textContent = "👥 I Miei Studenti";
   } else if (vistaCorrente === "classe" && entitaSelezionata) {
     title.textContent = `👥 Studenti — Classe ${entitaSelezionata}`;
   } else {
-    // Vista docente: trova nome docente
     const doc = docentiLista.find(d => d.id === entitaSelezionata);
     const nomeDoc = doc ? `${doc.cognome} ${doc.nome}` : "Docente";
     title.textContent = `👥 Studenti di ${nomeDoc}`;
   }
 
-  // Mostra loading
   body.innerHTML = `
     <div class="studenti-loading">
       <div class="loading-spinner" style="width:36px;height:36px;border:3px solid #EFEDE8;border-top-color:#1B4332;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
@@ -323,7 +389,6 @@ async function apriModalStudenti() {
   overlay.classList.add("active");
 
   try {
-    // Classi da cercare
     const classi = getClassiDalleLezioni();
 
     if (classi.length === 0) {
@@ -336,25 +401,19 @@ async function apriModalStudenti() {
       return;
     }
 
-    // Firestore "in" query supporta max 30 valori (più che sufficienti)
-    // Cerchiamo sia nel campo "classe" (vecchi dati) sia nell'array "classi" (nuovi dati)
-    // Per semplicità: carichiamo tutti gli studenti e filtriamo client-side
     const snapshot = await db.collection("studenti").orderBy("cognome").get();
 
     const studenti = [];
     snapshot.forEach(doc => {
       const s = { id: doc.id, ...doc.data() };
-      // Raccogli tutte le classi dello studente (compatibile vecchi e nuovi dati)
       const classiStudente = (s.classi && Array.isArray(s.classi) && s.classi.length > 0)
         ? s.classi.filter(c => c)
         : [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
-      // Lo studente è nel risultato se almeno una sua classe è tra quelle cercate
       if (classiStudente.some(c => classi.includes(c))) {
         studenti.push(s);
       }
     });
 
-    // Raggruppa per classe (uno studente può apparire in più classi)
     const perClasse = {};
     classi.forEach(c => { perClasse[c] = []; });
     studenti.forEach(s => {
@@ -362,28 +421,20 @@ async function apriModalStudenti() {
         ? s.classi.filter(c => c)
         : [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
       classiStudente.forEach(c => {
-        if (perClasse[c]) {
-          perClasse[c].push(s);
-        }
+        if (perClasse[c]) perClasse[c].push(s);
       });
     });
 
-    // Ordina studenti per cognome dentro ogni classe
     Object.keys(perClasse).forEach(c => {
       perClasse[c].sort((a, b) => (a.cognome || "").localeCompare(b.cognome || ""));
     });
 
-    // Raccogli tutte le email per la copia rapida (deduplicate)
     const tutteEmail = [...new Set(
-      studenti
-        .map(s => s.email)
-        .filter(e => e && e.trim())
+      studenti.map(s => s.email).filter(e => e && e.trim())
     )].sort();
 
-    // ── Render ──
     let html = "";
 
-    // Barra copia email
     if (tutteEmail.length > 0) {
       html += `
         <div class="studenti-copy-bar">
@@ -396,7 +447,6 @@ async function apriModalStudenti() {
       `;
     }
 
-    // Gruppi per classe
     classi.forEach(nomeClasse => {
       const lista = perClasse[nomeClasse];
       html += `<div class="studenti-classe-group">`;
@@ -427,7 +477,6 @@ async function apriModalStudenti() {
           `;
         });
       }
-
       html += `</div>`;
     });
 
@@ -459,22 +508,17 @@ function chiudiModalStudenti() {
   if (overlay) overlay.classList.remove("active");
 }
 
-// Chiudi cliccando fuori
 document.addEventListener("click", (e) => {
   const overlay = document.getElementById("studenti-overlay");
   if (e.target === overlay) chiudiModalStudenti();
 });
 
-/**
- * Copia tutte le email degli studenti negli appunti
- */
 async function copiaEmailStudenti() {
   const classi = getClassiDalleLezioni();
   if (classi.length === 0) return;
 
   try {
     const snapshot = await db.collection("studenti").get();
-
     const emails = [];
     snapshot.forEach(doc => {
       const s = doc.data();
@@ -487,25 +531,18 @@ async function copiaEmailStudenti() {
       }
     });
 
-    if (emails.length === 0) {
-      alert("Nessuna email trovata.");
-      return;
-    }
+    if (emails.length === 0) { alert("Nessuna email trovata."); return; }
 
     const testo = emails.sort().join("; ");
     await navigator.clipboard.writeText(testo);
 
-    // Feedback visivo
     const btns = document.querySelectorAll(".studenti-copy-btn");
-    const btn = btns[0]; // primo bottone = copia
+    const btn = btns[0];
     if (btn) {
       const original = btn.textContent;
       btn.textContent = "✅ Copiato!";
       btn.style.background = "#2E7D32";
-      setTimeout(() => {
-        btn.textContent = original;
-        btn.style.background = "";
-      }, 2000);
+      setTimeout(() => { btn.textContent = original; btn.style.background = ""; }, 2000);
     }
   } catch (err) {
     console.error("Errore copia email:", err);
@@ -513,16 +550,12 @@ async function copiaEmailStudenti() {
   }
 }
 
-/**
- * Apri modal composizione email con tutti gli studenti del calendario
- */
 async function inviaEmailDaCalendario() {
   const classi = getClassiDalleLezioni();
   if (classi.length === 0) return;
 
   try {
     const snapshot = await db.collection("studenti").get();
-
     const destinatari = [];
     snapshot.forEach(doc => {
       const s = doc.data();
@@ -530,38 +563,22 @@ async function inviaEmailDaCalendario() {
         ? s.classi.filter(c => c)
         : [s.classe, s.classe2, s.classe3, s.classe4].filter(c => c);
       if (classiStudente.some(c => classi.includes(c)) && s.email && s.email.trim()) {
-        destinatari.push({
-          nome: s.nome,
-          cognome: s.cognome,
-          email: s.email,
-          classe: s.classe || ""
-        });
+        destinatari.push({ nome: s.nome, cognome: s.cognome, email: s.email, classe: s.classe || "" });
       }
     });
 
-    if (destinatari.length === 0) {
-      alert("Nessuno studente con email registrata.");
-      return;
-    }
+    if (destinatari.length === 0) { alert("Nessuno studente con email registrata."); return; }
 
-    // Variabili contestuali
     const vars = {};
-    if (vistaCorrente === "classe" && entitaSelezionata) {
-      vars.classe = entitaSelezionata;
-    }
-    // Nome docente
+    if (vistaCorrente === "classe" && entitaSelezionata) vars.classe = entitaSelezionata;
     if (vistaCorrente === "docente" && entitaSelezionata) {
       const doc = docentiLista.find(d => d.id === entitaSelezionata);
       if (doc) vars.docente = `${doc.cognome} ${doc.nome}`;
     }
-    if (isDocente) {
-      vars.docente = getDocenteNome ? (getDocenteNome() || "Docente") : "Docente";
-    }
+    if (isDocente) vars.docente = getDocenteNome ? (getDocenteNome() || "Docente") : "Docente";
 
-    // Chiudi modal studenti e apri modal email
     chiudiModalStudenti();
     EmailModule.apriComponi(destinatari, vars);
-
   } catch (err) {
     console.error("Errore invio email da calendario:", err);
     alert("Errore nel caricamento. Riprova.");
@@ -574,6 +591,7 @@ async function inviaEmailDaCalendario() {
 
 function popolaDropdownEntita() {
   const select = document.getElementById("select-entita");
+  if (!select) return;
   select.innerHTML = "";
 
   if (vistaCorrente === "docente") {
@@ -584,7 +602,6 @@ function popolaDropdownEntita() {
       opt.textContent = `${d.cognome} ${d.nome}`;
       select.appendChild(opt);
     });
-
   } else if (vistaCorrente === "aula") {
     select.innerHTML = `<option value="">— Seleziona un'aula —</option>`;
     auleLista.forEach(a => {
@@ -593,7 +610,6 @@ function popolaDropdownEntita() {
       opt.textContent = a.nome;
       select.appendChild(opt);
     });
-
   } else if (vistaCorrente === "classe") {
     select.innerHTML = `<option value="">— Seleziona una classe —</option>`;
     classiLista.forEach(c => {
@@ -606,11 +622,10 @@ function popolaDropdownEntita() {
 }
 
 // ============================================================
-// CARICA LEZIONI DA FIRESTORE + MOSTRA TABELLA
+// CARICA LEZIONI + RIPETIZIONI E MOSTRA TABELLA
 // ============================================================
 
 async function caricaEmostraOrario() {
-  // Mostra loading
   orarioContainer.innerHTML = `
     <div class="orario-loading">
       <div class="loading-spinner"></div>
@@ -619,41 +634,103 @@ async function caricaEmostraOrario() {
   `;
 
   try {
-    let snapshot;
+    // ── Carica LEZIONI ──
+    let snapLezioni;
 
-    // Query diversa in base alla vista
     if (isDocente) {
-      // Docente: sempre per docenteId
-      snapshot = await db.collection("orarioScolastico")
-        .where("docenteId", "==", currentDocenteId)
-        .get();
-
+      snapLezioni = await db.collection("orarioScolastico")
+        .where("docenteId", "==", currentDocenteId).get();
     } else if (vistaCorrente === "docente") {
-      snapshot = await db.collection("orarioScolastico")
-        .where("docenteId", "==", entitaSelezionata)
-        .get();
-
+      snapLezioni = await db.collection("orarioScolastico")
+        .where("docenteId", "==", entitaSelezionata).get();
     } else if (vistaCorrente === "aula") {
-      snapshot = await db.collection("orarioScolastico")
-        .where("aula", "==", entitaSelezionata)
-        .get();
-
+      snapLezioni = await db.collection("orarioScolastico")
+        .where("aula", "==", entitaSelezionata).get();
     } else if (vistaCorrente === "classe") {
-      snapshot = await db.collection("orarioScolastico")
-        .where("classe", "==", entitaSelezionata)
-        .get();
+      snapLezioni = await db.collection("orarioScolastico")
+        .where("classe", "==", entitaSelezionata).get();
     }
 
     lezioniCorrente = [];
-    snapshot.forEach(doc => {
-      lezioniCorrente.push({ id: doc.id, ...doc.data() });
-    });
+    if (snapLezioni) {
+      snapLezioni.forEach(doc => {
+        lezioniCorrente.push({ id: doc.id, ...doc.data() });
+      });
+    }
 
-    // Costruisci la tabella
+    // ── Carica RIPETIZIONI della settimana ──
+    ripetizioniCorrente = [];
+
+    if (settimanaDate.length === 5) {
+      let queryRip;
+
+      if (isDocente) {
+        queryRip = db.collection("ripetizioni")
+          .where("docenteId", "==", currentDocenteId)
+          .where("data", ">=", settimanaDate[0])
+          .where("data", "<=", settimanaDate[4]);
+      } else if (vistaCorrente === "docente") {
+        queryRip = db.collection("ripetizioni")
+          .where("docenteId", "==", entitaSelezionata)
+          .where("data", ">=", settimanaDate[0])
+          .where("data", "<=", settimanaDate[4]);
+      } else if (vistaCorrente === "aula") {
+        // Ripetizioni filtrate per aula nella settimana
+        queryRip = db.collection("ripetizioni")
+          .where("aula", "==", entitaSelezionata)
+          .where("data", ">=", settimanaDate[0])
+          .where("data", "<=", settimanaDate[4]);
+      } else if (vistaCorrente === "classe") {
+        // Ripetizioni filtrate per classe nella settimana
+        queryRip = db.collection("ripetizioni")
+          .where("classe", "==", entitaSelezionata)
+          .where("data", ">=", settimanaDate[0])
+          .where("data", "<=", settimanaDate[4]);
+      }
+
+      if (queryRip) {
+        try {
+          const snapRip = await queryRip.get();
+          snapRip.forEach(doc => {
+            ripetizioniCorrente.push({ id: doc.id, ...doc.data() });
+          });
+        } catch (ripErr) {
+          // Firestore potrebbe richiedere un indice composito per query con 2+ where
+          // Fallback: carica tutte le ripetizioni della settimana e filtra client-side
+          console.warn("Query ripetizioni con filtro composito fallita, fallback client-side:", ripErr);
+          try {
+            const snapAll = await db.collection("ripetizioni")
+              .where("data", ">=", settimanaDate[0])
+              .where("data", "<=", settimanaDate[4])
+              .get();
+
+            snapAll.forEach(doc => {
+              const r = { id: doc.id, ...doc.data() };
+              let match = false;
+
+              if (isDocente) {
+                match = r.docenteId === currentDocenteId;
+              } else if (vistaCorrente === "docente") {
+                match = r.docenteId === entitaSelezionata;
+              } else if (vistaCorrente === "aula") {
+                match = r.aula === entitaSelezionata;
+              } else if (vistaCorrente === "classe") {
+                match = r.classe === entitaSelezionata;
+              }
+
+              if (match) ripetizioniCorrente.push(r);
+            });
+          } catch (fallbackErr) {
+            console.error("Errore fallback ripetizioni:", fallbackErr);
+          }
+        }
+      }
+    }
+
     renderTabella();
 
   } catch (err) {
-    console.error("Errore caricamento lezioni:", err);
+    console.error("Errore caricamento orario:", err);
     orarioContainer.innerHTML = `
       <div class="orario-empty">
         <div class="empty-icon">⚠️</div>
@@ -664,36 +741,50 @@ async function caricaEmostraOrario() {
 }
 
 // ============================================================
-// RENDER TABELLA ORARIO (con info contestuali)
+// RENDER TABELLA UNIFICATA (Mattina + Pomeriggio)
 // ============================================================
 
 function renderTabella() {
   // Trova il giorno con più fasce per le etichette
-  let giornoMaxFasce = GIORNI[0];
+  let giornoMaxMattina = GIORNI[0];
+  let giornoMaxPomeriggio = GIORNI[0];
+
   GIORNI.forEach(g => {
-    if ((fascePerGiorno[g]?.length || 0) > (fascePerGiorno[giornoMaxFasce]?.length || 0)) {
-      giornoMaxFasce = g;
+    if ((fascePerGiorno[g]?.numMattina || 0) > (fascePerGiorno[giornoMaxMattina]?.numMattina || 0)) {
+      giornoMaxMattina = g;
+    }
+    if ((fascePerGiorno[g]?.numPomeriggio || 0) > (fascePerGiorno[giornoMaxPomeriggio]?.numPomeriggio || 0)) {
+      giornoMaxPomeriggio = g;
     }
   });
 
-  const fasceEtichette = fascePerGiorno[giornoMaxFasce] || [];
+  const fasceMattinaEtichette = fascePerGiorno[giornoMaxMattina]?.mattina || [];
+  const fascePomeriggioEtichette = fascePerGiorno[giornoMaxPomeriggio]?.pomeriggio || [];
 
-  // Costruisci mappa veloce: "giorno-slot" → lezione
+  // ── Mappa lezioni: "giorno-slot" → lezione ──
   const mappaLezioni = {};
   lezioniCorrente.forEach(lez => {
     const key = `${lez.giorno}-${lez.slot}`;
-    if (!mappaLezioni[key]) {
-      mappaLezioni[key] = lez;
+    if (!mappaLezioni[key]) mappaLezioni[key] = [];
+    mappaLezioni[key].push({ ...lez, _tipo: "lezione" });
+  });
+
+  // ── Mappa ripetizioni: "giorno-slot" → ripetizione ──
+  const mappaRipetizioni = {};
+  ripetizioniCorrente.forEach(rip => {
+    const giorno = giornoFromData(rip.data);
+    if (!giorno) return;
+
+    const fasce = fascePerGiorno[giorno]?.tutte || [];
+    const slot = trovaSlotPerOra(fasce, rip.oraInizio || "15:00");
+    if (slot >= 0) {
+      const key = `${giorno}-${slot}`;
+      if (!mappaRipetizioni[key]) mappaRipetizioni[key] = [];
+      mappaRipetizioni[key].push({ ...rip, _tipo: "ripetizione", _giorno: giorno, _slot: slot });
     }
   });
 
-  // Mappa docentiId → nome (per viste aula/classe)
-  const mappaDocenti = {};
-  docentiLista.forEach(d => {
-    mappaDocenti[d.id] = `${d.cognome} ${d.nome}`;
-  });
-
-  // HTML tabella
+  // ── HTML tabella ──
   let html = `<table class="orario-table">`;
 
   // THEAD
@@ -707,76 +798,26 @@ function renderTabella() {
   // TBODY
   html += `<tbody>`;
 
-  for (let slot = 0; slot < maxFasce; slot++) {
-    html += `<tr>`;
+  // ── Righe MATTINA ──
+  for (let i = 0; i < maxFasceMattina; i++) {
+    html += renderRigaFascia(i, "mattina", fasceMattinaEtichette[i], mappaLezioni, mappaRipetizioni);
+  }
 
-    // Colonna fascia oraria
-    const fascia = fasceEtichette[slot];
-    if (fascia) {
-      html += `<td class="td-fascia">
-        <span class="fascia-inizio">${fascia.start}</span>
-        <span class="fascia-fine">${fascia.end}</span>
-      </td>`;
-    } else {
-      html += `<td class="td-fascia">—</td>`;
-    }
-
-    // Colonne giorni
-    GIORNI.forEach(giorno => {
-      const fasceGiorno = fascePerGiorno[giorno] || [];
-      const numFasceGiorno = fasceGiorno.length;
-
-      // Slot fuori range → cella disabled
-      if (slot >= numFasceGiorno) {
-        html += `<td class="cella-disabled"></td>`;
-        return;
-      }
-
-      const key = `${giorno}-${slot}`;
-      const lezione = mappaLezioni[key];
-
-      if (lezione) {
-        // ── Cella occupata con info contestuali ──
-        const editableClass = isAdmin && vistaCorrente === "docente" ? "cella-editable" : "";
-        const onClickEdit = isAdmin && vistaCorrente === "docente"
-          ? `onclick="apriModalModifica('${lezione.id}')"` : "";
-
-        html += `<td class="cella-occupata ${editableClass}" ${onClickEdit}>
-          <div class="cella-content">
-            <span class="cella-materia">${escapeHtml(lezione.materia)}</span>`;
-
-        // Info contestuali in base alla vista
-        if (vistaCorrente === "docente" || isDocente) {
-          html += `<span class="cella-classe">${escapeHtml(lezione.classe)}</span>`;
-          if (lezione.aula) {
-            html += `<span class="cella-aula">${escapeHtml(lezione.aula)}</span>`;
-          }
-        } else if (vistaCorrente === "aula") {
-          const nomeDoc = mappaDocenti[lezione.docenteId] || "—";
-          html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
-          html += `<span class="cella-classe">${escapeHtml(lezione.classe)}</span>`;
-        } else if (vistaCorrente === "classe") {
-          const nomeDoc = mappaDocenti[lezione.docenteId] || "—";
-          html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
-          if (lezione.aula) {
-            html += `<span class="cella-aula">${escapeHtml(lezione.aula)}</span>`;
-          }
-        }
-
-        html += `</div>`;
-
-        // Bottone rimuovi (solo admin in vista docente)
-        if (isAdmin && vistaCorrente === "docente") {
-          html += `<button class="cella-remove" onclick="event.stopPropagation(); rimuoviLezione('${lezione.id}')" title="Rimuovi">✕</button>`;
-        }
-
-        html += `</td>`;
-      } else {
-        html += `<td class="cella-vuota">—</td>`;
-      }
-    });
-
+  // ── Separatore mattina/pomeriggio ──
+  if (maxFasceMattina > 0 && maxFascePomeriggio > 0) {
+    html += `<tr class="separator-row">`;
+    html += `<td colspan="${GIORNI.length + 1}" class="td-separator">
+      <div class="separator-line">
+        <span class="separator-label">☀️ Pomeriggio</span>
+      </div>
+    </td>`;
     html += `</tr>`;
+  }
+
+  // ── Righe POMERIGGIO ──
+  for (let i = 0; i < maxFascePomeriggio; i++) {
+    const slotGlobale = maxFasceMattina + i;
+    html += renderRigaFascia(slotGlobale, "pomeriggio", fascePomeriggioEtichette[i], mappaLezioni, mappaRipetizioni);
   }
 
   html += `</tbody></table>`;
@@ -784,105 +825,314 @@ function renderTabella() {
   orarioContainer.innerHTML = html;
 }
 
+function renderRigaFascia(slotGlobale, blocco, fasciaEtichetta, mappaLezioni, mappaRipetizioni) {
+  let html = `<tr>`;
+
+  // Colonna fascia oraria
+  if (fasciaEtichetta) {
+    html += `<td class="td-fascia ${blocco === 'pomeriggio' ? 'td-fascia-pom' : ''}">
+      <span class="fascia-inizio">${fasciaEtichetta.start}</span>
+      <span class="fascia-fine">${fasciaEtichetta.end}</span>
+    </td>`;
+  } else {
+    html += `<td class="td-fascia">—</td>`;
+  }
+
+  // Colonne giorni
+  GIORNI.forEach(giorno => {
+    const fpg = fascePerGiorno[giorno];
+    const numMattina = fpg?.numMattina || 0;
+    const numPomeriggio = fpg?.numPomeriggio || 0;
+
+    // Determina se lo slot è valido per questo giorno
+    let slotValido = false;
+    if (blocco === "mattina") {
+      slotValido = slotGlobale < numMattina;
+    } else {
+      const pomIdx = slotGlobale - maxFasceMattina;
+      slotValido = pomIdx < numPomeriggio;
+    }
+
+    if (!slotValido) {
+      html += `<td class="cella-disabled"></td>`;
+      return;
+    }
+
+    // Cerca il vero slot per questo giorno
+    let realSlot = slotGlobale;
+    if (blocco === "pomeriggio") {
+      // Lo slot globale per pomeriggio è maxFasceMattina + i
+      // Ma nel giorno specifico, il pomeriggio inizia a numMattina di QUEL giorno
+      const pomIdx = slotGlobale - maxFasceMattina;
+      realSlot = numMattina + pomIdx;
+    }
+
+    const key = `${giorno}-${realSlot}`;
+    const lezioni = mappaLezioni[key] || [];
+    const ripetizioni = mappaRipetizioni[key] || [];
+    const items = [...lezioni, ...ripetizioni];
+
+    if (items.length > 0) {
+      html += renderCellaOccupata(items, giorno, realSlot, blocco);
+    } else {
+      // Cella vuota cliccabile (admin)
+      if (isAdmin) {
+        html += `<td class="cella-vuota cella-clickable" onclick="cellaVuotaClick('${giorno}', ${realSlot}, '${blocco}')">
+          <span class="cella-add-hint">+</span>
+        </td>`;
+      } else {
+        html += `<td class="cella-vuota">—</td>`;
+      }
+    }
+  });
+
+  html += `</tr>`;
+  return html;
+}
+
+function renderCellaOccupata(items, giorno, slot, blocco) {
+  let html = `<td class="cella-occupata-multi">`;
+
+  items.forEach(item => {
+    if (item._tipo === "lezione") {
+      html += renderCellaLezione(item, giorno, slot);
+    } else {
+      html += renderCellaRipetizione(item, giorno, slot);
+    }
+  });
+
+  html += `</td>`;
+  return html;
+}
+
+function renderCellaLezione(lez, giorno, slot) {
+  const editable = isAdmin ? "cella-item-editable" : "";
+  const onClick = isAdmin ? `onclick="apriModalModificaLezione('${lez.id}')"` : "";
+
+  let html = `<div class="cella-item cella-lezione ${editable}" ${onClick}>`;
+  html += `<div class="cella-content">`;
+  html += `<span class="cella-materia">${escapeHtml(lez.materia)}</span>`;
+
+  if (vistaCorrente === "docente" || isDocente) {
+    html += `<span class="cella-classe">${escapeHtml(lez.classe)}</span>`;
+    if (lez.aula) html += `<span class="cella-aula-tag">${escapeHtml(lez.aula)}</span>`;
+  } else if (vistaCorrente === "aula") {
+    const nomeDoc = mappaDocenti[lez.docenteId] || "—";
+    html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
+    html += `<span class="cella-classe">${escapeHtml(lez.classe)}</span>`;
+  } else if (vistaCorrente === "classe") {
+    const nomeDoc = mappaDocenti[lez.docenteId] || "—";
+    html += `<span class="cella-docente">${escapeHtml(nomeDoc)}</span>`;
+    if (lez.aula) html += `<span class="cella-aula-tag">${escapeHtml(lez.aula)}</span>`;
+  }
+
+  html += `</div>`;
+
+  // Bottone rimuovi (admin)
+  if (isAdmin) {
+    html += `<button class="cella-remove" onclick="event.stopPropagation(); rimuoviLezione('${lez.id}')" title="Rimuovi">✕</button>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderCellaRipetizione(rip, giorno, slot) {
+  const editable = isAdmin ? "cella-item-editable" : "";
+  const onClick = isAdmin
+    ? `onclick="apriModalModificaRipetizione('${rip.id}')"`
+    : `onclick="apriDettaglioRipetizione('${rip.id}')"`;
+
+  const durata = Number(rip.durata) || 60;
+  const oraFine = minutesToTime(timeToMinutes(rip.oraInizio || "15:00") + durata);
+
+  let html = `<div class="cella-item cella-ripetizione ${editable}" ${onClick}>`;
+  html += `<div class="cella-content">`;
+  html += `<span class="cella-materia-rip">${escapeHtml(rip.materia)}</span>`;
+  html += `<span class="cella-studente">${escapeHtml(rip.studente)}</span>`;
+
+  // Info contestuali
+  if (vistaCorrente === "aula" || vistaCorrente === "classe") {
+    const nomeDoc = mappaDocenti[rip.docenteId] || "—";
+    html += `<span class="cella-docente-rip">${escapeHtml(nomeDoc)}</span>`;
+  }
+
+  html += `<span class="cella-ora-rip">${rip.oraInizio}–${oraFine}</span>`;
+
+  html += `</div>`;
+
+  if (isAdmin) {
+    html += `<button class="cella-remove cella-remove-rip" onclick="event.stopPropagation(); rimuoviRipetizione('${rip.id}')" title="Rimuovi">✕</button>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
 // ============================================================
-// ADMIN: Modal Setup (Aggiungi / Modifica)
+// CLICK SU CELLA VUOTA (Admin)
+// ============================================================
+
+function cellaVuotaClick(giorno, slot, blocco) {
+  if (!isAdmin || !entitaSelezionata) return;
+
+  // Pre-seleziona giorno e slot nel modal
+  if (vistaCorrente === "docente") currentDocenteId = entitaSelezionata;
+
+  apriSceltaTipo(giorno, slot, blocco);
+}
+
+// ============================================================
+// SCELTA TIPO: Lezione o Ripetizione
+// ============================================================
+
+function apriSceltaTipo(giorno, slot, blocco) {
+  const overlay = document.getElementById("scelta-overlay");
+  if (!overlay) {
+    // Fallback: apri direttamente il modal lezione
+    apriModalLezione("add", null, giorno, slot);
+    return;
+  }
+
+  // Salva contesto per passarlo al modal successivo
+  overlay.dataset.giorno = giorno || "";
+  overlay.dataset.slot = slot != null ? slot : "";
+  overlay.dataset.blocco = blocco || "";
+
+  overlay.classList.add("active");
+}
+
+function sceltaLezione() {
+  const overlay = document.getElementById("scelta-overlay");
+  const giorno = overlay?.dataset.giorno || "";
+  const slot = overlay?.dataset.slot !== "" ? parseInt(overlay.dataset.slot) : null;
+
+  chiudiScelta();
+  apriModalLezione("add", null, giorno, slot);
+}
+
+function sceltaRipetizione() {
+  const overlay = document.getElementById("scelta-overlay");
+  const giorno = overlay?.dataset.giorno || "";
+  const slot = overlay?.dataset.slot !== "" ? parseInt(overlay.dataset.slot) : null;
+  const blocco = overlay?.dataset.blocco || "";
+
+  chiudiScelta();
+  apriModalRipetizione("add", null, giorno, slot, blocco);
+}
+
+function chiudiScelta() {
+  const overlay = document.getElementById("scelta-overlay");
+  if (overlay) overlay.classList.remove("active");
+}
+
+document.addEventListener("click", (e) => {
+  const overlay = document.getElementById("scelta-overlay");
+  if (e.target === overlay) chiudiScelta();
+});
+
+// ============================================================
+// MODAL SETUP
 // ============================================================
 
 function setupModal() {
-  const overlay = document.getElementById("modal-overlay");
-  const btnClose = document.getElementById("modal-close");
-  const btnCancel = document.getElementById("modal-cancel");
-  const btnSave = document.getElementById("modal-save");
+  // ── Modal Lezione ──
+  const overlayLez = document.getElementById("modal-overlay");
+  const btnCloseLez = document.getElementById("modal-close");
+  const btnCancelLez = document.getElementById("modal-cancel");
+  const btnSaveLez = document.getElementById("modal-save");
   const selectGiorno = document.getElementById("modal-giorno");
-  const selectFascia = document.getElementById("modal-fascia");
+
+  if (btnCloseLez) btnCloseLez.addEventListener("click", chiudiModalLezione);
+  if (btnCancelLez) btnCancelLez.addEventListener("click", chiudiModalLezione);
+  if (overlayLez) overlayLez.addEventListener("click", (e) => { if (e.target === overlayLez) chiudiModalLezione(); });
+
+  // Popola select giorni
+  if (selectGiorno) {
+    GIORNI.forEach(g => {
+      const opt = document.createElement("option");
+      opt.value = g;
+      opt.textContent = g;
+      selectGiorno.appendChild(opt);
+    });
+    selectGiorno.addEventListener("change", () => { aggiornaFasceDisponibili(); });
+  }
+
+  // Popola select classi e aule nel modal lezione
   const selectClasse = document.getElementById("modal-classe");
   const selectAula = document.getElementById("modal-aula");
 
-  // Chiudi modal
-  btnClose.addEventListener("click", chiudiModal);
-  btnCancel.addEventListener("click", chiudiModal);
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) chiudiModal();
-  });
-
-  // Popola select giorni
-  GIORNI.forEach(g => {
-    const opt = document.createElement("option");
-    opt.value = g;
-    opt.textContent = g;
-    selectGiorno.appendChild(opt);
-  });
-
-  // Popola select classi
-  classiLista.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = c.nome;
-    opt.textContent = c.nome;
-    selectClasse.appendChild(opt);
-  });
-
-  // Popola select aule
-  auleLista.forEach(a => {
-    const opt = document.createElement("option");
-    opt.value = a.nome;
-    opt.textContent = a.nome;
-    selectAula.appendChild(opt);
-  });
-
-  // Al cambio giorno → aggiorna fasce disponibili
-  selectGiorno.addEventListener("change", () => {
-    aggiornaFasceDisponibili();
-  });
-
-  // Salva lezione
-  btnSave.addEventListener("click", salvaLezione);
-}
-
-/**
- * Aggiorna le fasce orarie disponibili nel dropdown della modal
- */
-function aggiornaFasceDisponibili() {
-  const selectGiorno = document.getElementById("modal-giorno");
-  const selectFascia = document.getElementById("modal-fascia");
-  const giorno = selectGiorno.value;
-
-  selectFascia.innerHTML = "";
-
-  if (!giorno) {
-    selectFascia.disabled = true;
-    selectFascia.innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
-    return;
+  if (selectClasse) {
+    classiLista.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.nome;
+      opt.textContent = c.nome;
+      selectClasse.appendChild(opt);
+    });
   }
 
-  const fasce = fascePerGiorno[giorno] || [];
-
-  if (fasce.length === 0) {
-    selectFascia.disabled = true;
-    selectFascia.innerHTML = `<option value="">Nessuna fascia configurata</option>`;
-    return;
+  if (selectAula) {
+    auleLista.forEach(a => {
+      const opt = document.createElement("option");
+      opt.value = a.nome;
+      opt.textContent = a.nome;
+      selectAula.appendChild(opt);
+    });
   }
 
-  selectFascia.disabled = false;
-  selectFascia.innerHTML = `<option value="">— Seleziona fascia —</option>`;
+  if (btnSaveLez) btnSaveLez.addEventListener("click", salvaLezione);
 
-  fasce.forEach(f => {
-    const occupato = lezioniCorrente.some(l =>
-      l.giorno === giorno && l.slot === f.slot && l.id !== editingLezioneId
-    );
-    const opt = document.createElement("option");
-    opt.value = f.slot;
-    opt.textContent = `${f.start} – ${f.end}` + (occupato ? " (occupata)" : "");
-    opt.disabled = occupato;
-    selectFascia.appendChild(opt);
+  // ── Modal Ripetizione ──
+  const overlayRip = document.getElementById("modal-overlay-rip");
+  if (overlayRip) {
+    overlayRip.addEventListener("click", (e) => { if (e.target === overlayRip) chiudiModalRipetizione(); });
+  }
+
+  const btnCloseRip = document.getElementById("modal-close-rip");
+  const btnCancelRip = document.getElementById("modal-cancel-rip");
+  const btnSaveRip = document.getElementById("modal-save-rip");
+  const btnDeleteRip = document.getElementById("btn-elimina-rip");
+
+  if (btnCloseRip) btnCloseRip.addEventListener("click", chiudiModalRipetizione);
+  if (btnCancelRip) btnCancelRip.addEventListener("click", chiudiModalRipetizione);
+  if (btnSaveRip) btnSaveRip.addEventListener("click", salvaRipetizione);
+  if (btnDeleteRip) btnDeleteRip.addEventListener("click", () => {
+    if (editingRipetizioneId && confirm("Sei sicuro di voler eliminare questa ripetizione?")) {
+      rimuoviRipetizione(editingRipetizioneId);
+      chiudiModalRipetizione();
+    }
   });
+
+  // Popola dropdown docente nel modal ripetizione
+  const selectDocRip = document.getElementById("modal-rip-docente");
+  if (selectDocRip) {
+    docentiLista.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = `${d.cognome} ${d.nome}`;
+      selectDocRip.appendChild(opt);
+    });
+  }
+
+  // Popola aule nel modal ripetizione
+  const selectAulaRip = document.getElementById("modal-rip-aula");
+  if (selectAulaRip) {
+    auleLista.forEach(a => {
+      const opt = document.createElement("option");
+      opt.value = a.nome;
+      opt.textContent = a.nome;
+      selectAulaRip.appendChild(opt);
+    });
+  }
 }
 
 // ============================================================
-// ADMIN: Apri Modal (add o edit)
+// MODAL LEZIONE: Apri / Chiudi / Fasce
 // ============================================================
 
-function apriModal(mode, lezione = null) {
+function apriModalLezione(mode, lezione, giorno, slot) {
   modalMode = mode;
+  modalTipo = "lezione";
   editingLezioneId = lezione ? lezione.id : null;
 
   const titleEl = document.getElementById("modal-title");
@@ -898,50 +1148,226 @@ function apriModal(mode, lezione = null) {
     document.getElementById("modal-materia").value = lezione.materia || "";
     document.getElementById("modal-classe").value = lezione.classe || "";
     document.getElementById("modal-aula").value = lezione.aula || "";
-
   } else {
     titleEl.textContent = "Aggiungi Lezione";
     btnSave.textContent = "Salva Lezione";
 
-    document.getElementById("modal-giorno").value = "";
-    document.getElementById("modal-fascia").innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
-    document.getElementById("modal-fascia").disabled = true;
+    document.getElementById("modal-giorno").value = giorno || "";
+    if (giorno) {
+      aggiornaFasceDisponibili();
+      if (slot != null) document.getElementById("modal-fascia").value = slot;
+    } else {
+      document.getElementById("modal-fascia").innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
+      document.getElementById("modal-fascia").disabled = true;
+    }
     document.getElementById("modal-materia").value = "";
     document.getElementById("modal-classe").value = "";
     document.getElementById("modal-aula").value = "";
   }
 
   nascondiErroreModal();
-
   document.getElementById("modal-overlay").classList.add("active");
 }
 
-function apriModalModifica(lezioneId) {
+function apriModalModificaLezione(lezioneId) {
   const lezione = lezioniCorrente.find(l => l.id === lezioneId);
   if (!lezione) return;
-  apriModal("edit", lezione);
+  apriModalLezione("edit", lezione);
 }
 
-function chiudiModal() {
+function chiudiModalLezione() {
   document.getElementById("modal-overlay").classList.remove("active");
   modalMode = "add";
   editingLezioneId = null;
 }
 
+function aggiornaFasceDisponibili() {
+  const selectGiorno = document.getElementById("modal-giorno");
+  const selectFascia = document.getElementById("modal-fascia");
+  const giorno = selectGiorno.value;
+
+  selectFascia.innerHTML = "";
+
+  if (!giorno) {
+    selectFascia.disabled = true;
+    selectFascia.innerHTML = `<option value="">— Prima seleziona il giorno —</option>`;
+    return;
+  }
+
+  const fpg = fascePerGiorno[giorno];
+  const fasce = fpg?.tutte || [];
+
+  if (fasce.length === 0) {
+    selectFascia.disabled = true;
+    selectFascia.innerHTML = `<option value="">Nessuna fascia configurata</option>`;
+    return;
+  }
+
+  selectFascia.disabled = false;
+  selectFascia.innerHTML = `<option value="">— Seleziona fascia —</option>`;
+
+  fasce.forEach((f, idx) => {
+    // Separatore visivo tra mattina e pomeriggio
+    if (idx === fpg.numMattina && fpg.numPomeriggio > 0) {
+      const sep = document.createElement("option");
+      sep.disabled = true;
+      sep.textContent = "── Pomeriggio ──";
+      selectFascia.appendChild(sep);
+    }
+
+    const occupato = lezioniCorrente.some(l =>
+      l.giorno === giorno && l.slot === f.slot && l.id !== editingLezioneId
+    );
+    const opt = document.createElement("option");
+    opt.value = f.slot;
+    opt.textContent = `${f.start} – ${f.end}` + (occupato ? " (occupata)" : "");
+    opt.disabled = occupato;
+    selectFascia.appendChild(opt);
+  });
+}
+
 function mostraErroreModal(msg) {
   const el = document.getElementById("modal-error");
-  el.textContent = msg;
-  el.classList.add("visible");
+  if (el) { el.textContent = msg; el.classList.add("visible"); }
 }
 
 function nascondiErroreModal() {
   const el = document.getElementById("modal-error");
-  el.textContent = "";
-  el.classList.remove("visible");
+  if (el) { el.textContent = ""; el.classList.remove("visible"); }
 }
 
 // ============================================================
-// ADMIN: Salva lezione (Add o Update) con validazione conflitto
+// MODAL RIPETIZIONE: Apri / Chiudi
+// ============================================================
+
+function apriModalRipetizione(mode, ripetizione, giorno, slot, blocco) {
+  modalMode = mode;
+  modalTipo = "ripetizione";
+  editingRipetizioneId = ripetizione ? ripetizione.id : null;
+
+  const titleEl = document.getElementById("modal-title-rip");
+  const btnSave = document.getElementById("modal-save-rip");
+  const btnDelete = document.getElementById("btn-elimina-rip");
+
+  if (mode === "edit" && ripetizione) {
+    titleEl.textContent = "Modifica Ripetizione";
+    btnSave.textContent = "Aggiorna";
+    btnDelete.style.display = "inline-flex";
+
+    document.getElementById("modal-rip-docente").value = ripetizione.docenteId || "";
+    document.getElementById("modal-rip-data").value = ripetizione.data || "";
+    document.getElementById("modal-rip-ora").value = ripetizione.oraInizio || "";
+    document.getElementById("modal-rip-durata").value = String(ripetizione.durata || 60);
+    document.getElementById("modal-rip-studente").value = ripetizione.studente || "";
+    document.getElementById("modal-rip-materia").value = ripetizione.materia || "";
+    document.getElementById("modal-rip-classe").value = ripetizione.classe || "";
+    document.getElementById("modal-rip-aula").value = ripetizione.aula || "";
+    document.getElementById("modal-rip-note").value = ripetizione.note || "";
+  } else {
+    titleEl.textContent = "Nuova Ripetizione";
+    btnSave.textContent = "Salva";
+    btnDelete.style.display = "none";
+
+    // Pre-seleziona docente se in vista docente
+    const selectDoc = document.getElementById("modal-rip-docente");
+    if (vistaCorrente === "docente" && entitaSelezionata) {
+      selectDoc.value = entitaSelezionata;
+    } else {
+      selectDoc.value = "";
+    }
+
+    // Pre-seleziona data dal giorno cliccato
+    if (giorno && settimanaDate.length === 5) {
+      const idxGiorno = GIORNI.indexOf(giorno);
+      if (idxGiorno >= 0) {
+        document.getElementById("modal-rip-data").value = settimanaDate[idxGiorno];
+      }
+    } else {
+      document.getElementById("modal-rip-data").value = "";
+    }
+
+    // Pre-seleziona ora dallo slot cliccato
+    if (slot != null && giorno) {
+      const fasce = fascePerGiorno[giorno]?.tutte || [];
+      const fascia = fasce.find(f => f.slot === slot);
+      if (fascia) {
+        document.getElementById("modal-rip-ora").value = fascia.start;
+      }
+    } else {
+      document.getElementById("modal-rip-ora").value = "";
+    }
+
+    // Pre-seleziona aula se in vista aula
+    if (vistaCorrente === "aula" && entitaSelezionata) {
+      document.getElementById("modal-rip-aula").value = entitaSelezionata;
+    } else {
+      document.getElementById("modal-rip-aula").value = "";
+    }
+
+    document.getElementById("modal-rip-durata").value = "60";
+    document.getElementById("modal-rip-studente").value = "";
+    document.getElementById("modal-rip-materia").value = "";
+    document.getElementById("modal-rip-classe").value = "";
+    document.getElementById("modal-rip-note").value = "";
+  }
+
+  document.getElementById("modal-overlay-rip").classList.add("active");
+}
+
+function apriModalModificaRipetizione(ripId) {
+  const rip = ripetizioniCorrente.find(r => r.id === ripId);
+  if (!rip) return;
+  apriModalRipetizione("edit", rip);
+}
+
+function chiudiModalRipetizione() {
+  const overlay = document.getElementById("modal-overlay-rip");
+  if (overlay) overlay.classList.remove("active");
+  editingRipetizioneId = null;
+}
+
+// ============================================================
+// DETTAGLIO RIPETIZIONE (Docente — sola lettura)
+// ============================================================
+
+function apriDettaglioRipetizione(ripId) {
+  const rip = ripetizioniCorrente.find(r => r.id === ripId);
+  if (!rip) return;
+
+  const nomeDocente = mappaDocenti[rip.docenteId] || "—";
+  const durata = Number(rip.durata) || 60;
+  const oraFine = minutesToTime(timeToMinutes(rip.oraInizio || "15:00") + durata);
+  const dataLeggibile = formatDateFull(rip.data);
+
+  const overlay = document.getElementById("dettaglio-rip-overlay");
+  const body = document.getElementById("dettaglio-rip-body");
+  if (!overlay || !body) return;
+
+  body.innerHTML = `
+    <div class="dettaglio-riga"><span class="dettaglio-label">📅 Data</span><span class="dettaglio-valore">${dataLeggibile}</span></div>
+    <div class="dettaglio-riga"><span class="dettaglio-label">🕐 Orario</span><span class="dettaglio-valore">${escapeHtml(rip.oraInizio)} → ${oraFine} (${durata} min)</span></div>
+    <div class="dettaglio-riga"><span class="dettaglio-label">👤 Studente</span><span class="dettaglio-valore">${escapeHtml(rip.studente || "—")}</span></div>
+    <div class="dettaglio-riga"><span class="dettaglio-label">📖 Materia</span><span class="dettaglio-valore">${escapeHtml(rip.materia || "—")}</span></div>
+    ${rip.classe ? `<div class="dettaglio-riga"><span class="dettaglio-label">🏫 Classe</span><span class="dettaglio-valore">${escapeHtml(rip.classe)}</span></div>` : ""}
+    ${rip.aula ? `<div class="dettaglio-riga"><span class="dettaglio-label">📍 Aula</span><span class="dettaglio-valore">${escapeHtml(rip.aula)}</span></div>` : ""}
+    ${rip.note ? `<div class="dettaglio-riga"><span class="dettaglio-label">📝 Note</span><span class="dettaglio-valore">${escapeHtml(rip.note)}</span></div>` : ""}
+  `;
+
+  overlay.classList.add("active");
+}
+
+function chiudiDettaglioRipetizione() {
+  const overlay = document.getElementById("dettaglio-rip-overlay");
+  if (overlay) overlay.classList.remove("active");
+}
+
+document.addEventListener("click", (e) => {
+  const overlay = document.getElementById("dettaglio-rip-overlay");
+  if (e.target === overlay) chiudiDettaglioRipetizione();
+});
+
+// ============================================================
+// SALVA LEZIONE
 // ============================================================
 
 async function salvaLezione() {
@@ -975,7 +1401,7 @@ async function salvaLezione() {
   btnSave.textContent = "Controllo disponibilità…";
 
   try {
-    // Validazione conflitto AULA
+    // Validazione conflitto aula
     const conflittoAula = await db.collection("orarioScolastico")
       .where("giorno", "==", giorno)
       .where("slot", "==", slot)
@@ -984,21 +1410,14 @@ async function salvaLezione() {
 
     const conflitti = [];
     conflittoAula.forEach(doc => {
-      if (doc.id !== editingLezioneId) {
-        conflitti.push({ id: doc.id, ...doc.data() });
-      }
+      if (doc.id !== editingLezioneId) conflitti.push({ id: doc.id, ...doc.data() });
     });
 
     if (conflitti.length > 0) {
-      const conflitto = conflitti[0];
-      const docConflitto = docentiLista.find(d => d.id === conflitto.docenteId);
-      const nomeConflitto = docConflitto
-        ? `${docConflitto.cognome} ${docConflitto.nome}`
-        : "un altro docente";
-
-      mostraErroreModal(
-        `L'aula "${aula}" è già occupata in ${giorno} a quest'ora da ${nomeConflitto} (${conflitto.materia} — ${conflitto.classe}).`
-      );
+      const c = conflitti[0];
+      const docConflitto = docentiLista.find(d => d.id === c.docenteId);
+      const nomeConflitto = docConflitto ? `${docConflitto.cognome} ${docConflitto.nome}` : "un altro docente";
+      mostraErroreModal(`L'aula "${aula}" è già occupata in ${giorno} a quest'ora da ${nomeConflitto} (${c.materia} — ${c.classe}).`);
       btnSave.disabled = false;
       btnSave.textContent = originalText;
       return;
@@ -1021,10 +1440,8 @@ async function salvaLezione() {
       await db.collection("orarioScolastico").add(datiLezione);
     }
 
-    chiudiModal();
+    chiudiModalLezione();
     await caricaEmostraOrario();
-
-    // ★ Aggiorna pulsante studenti dopo modifica orario
     aggiornaBottoneStudenti();
 
   } catch (err) {
@@ -1037,7 +1454,73 @@ async function salvaLezione() {
 }
 
 // ============================================================
-// ADMIN: Rimuovi lezione da Firestore
+// SALVA RIPETIZIONE
+// ============================================================
+
+async function salvaRipetizione() {
+  const docenteId = document.getElementById("modal-rip-docente").value;
+  const data = document.getElementById("modal-rip-data").value;
+  const oraInizio = document.getElementById("modal-rip-ora").value;
+  const durata = Number(document.getElementById("modal-rip-durata").value);
+  const studente = document.getElementById("modal-rip-studente").value.trim();
+  const materia = document.getElementById("modal-rip-materia").value.trim();
+  const classe = document.getElementById("modal-rip-classe").value.trim();
+  const aula = document.getElementById("modal-rip-aula").value;
+  const note = document.getElementById("modal-rip-note").value.trim();
+
+  if (!docenteId || !data || !oraInizio || !durata || !studente || !materia) {
+    alert("Compila tutti i campi obbligatori (docente, data, ora, durata, studente, materia).");
+    return;
+  }
+
+  const dataObj = new Date(data + "T00:00:00");
+  const dow = dataObj.getDay();
+  if (dow === 0 || dow === 6) {
+    alert("Le ripetizioni possono essere solo dal lunedì al venerdì.");
+    return;
+  }
+
+  const documento = {
+    docenteId: docenteId,
+    docenteNome: mappaDocenti[docenteId] || "",
+    data: data,
+    oraInizio: oraInizio,
+    durata: durata,
+    studente: studente,
+    materia: materia,
+    classe: classe,
+    aula: aula,
+    note: note,
+    creatoIl: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  const btnSalva = document.getElementById("modal-save-rip");
+  btnSalva.disabled = true;
+  const origText = btnSalva.textContent;
+  btnSalva.textContent = "Salvataggio…";
+
+  try {
+    if (editingRipetizioneId) {
+      await db.collection("ripetizioni").doc(editingRipetizioneId).update(documento);
+    } else {
+      await db.collection("ripetizioni").add(documento);
+    }
+
+    chiudiModalRipetizione();
+    await caricaEmostraOrario();
+    aggiornaBottoneStudenti();
+
+  } catch (err) {
+    console.error("Errore salvataggio ripetizione:", err);
+    alert("Errore durante il salvataggio. Riprova.");
+  } finally {
+    btnSalva.disabled = false;
+    btnSalva.textContent = origText;
+  }
+}
+
+// ============================================================
+// RIMUOVI LEZIONE / RIPETIZIONE
 // ============================================================
 
 async function rimuoviLezione(lezioneId) {
@@ -1046,11 +1529,22 @@ async function rimuoviLezione(lezioneId) {
   try {
     await db.collection("orarioScolastico").doc(lezioneId).delete();
     await caricaEmostraOrario();
-
-    // ★ Aggiorna pulsante studenti dopo rimozione
     aggiornaBottoneStudenti();
   } catch (err) {
     console.error("Errore rimozione lezione:", err);
+    alert("Errore durante la rimozione. Riprova.");
+  }
+}
+
+async function rimuoviRipetizione(ripId) {
+  if (!confirm("Vuoi rimuovere questa ripetizione?")) return;
+
+  try {
+    await db.collection("ripetizioni").doc(ripId).delete();
+    await caricaEmostraOrario();
+    aggiornaBottoneStudenti();
+  } catch (err) {
+    console.error("Errore rimozione ripetizione:", err);
     alert("Errore durante la rimozione. Riprova.");
   }
 }
@@ -1072,7 +1566,7 @@ function mostraEmptyPerVista() {
   if (vistaCorrente === "docente") {
     mostraEmpty("Seleziona un docente per visualizzare l'orario.");
   } else if (vistaCorrente === "aula") {
-    mostraEmpty("Seleziona un'aula per visualizzare le lezioni assegnate.");
+    mostraEmpty("Seleziona un'aula per visualizzare le lezioni e ripetizioni assegnate.");
   } else if (vistaCorrente === "classe") {
     mostraEmpty("Seleziona una classe per visualizzare l'orario.");
   }
@@ -1086,7 +1580,7 @@ function escapeHtml(str) {
 }
 
 // ============================================================
-// GESTISCI AULE E CLASSI
+// GESTISCI AULE E CLASSI (invariato)
 // ============================================================
 
 function apriGestisci() {
@@ -1098,7 +1592,6 @@ function chiudiGestisci() {
   document.getElementById("gestisci-overlay").classList.remove("active");
 }
 
-// Chiudi cliccando fuori
 document.addEventListener("click", (e) => {
   const overlay = document.getElementById("gestisci-overlay");
   if (e.target === overlay) chiudiGestisci();
@@ -1108,10 +1601,8 @@ function switchGestisciTab(tab) {
   document.querySelectorAll(".gestisci-tab").forEach(t => {
     t.classList.toggle("active", t.dataset.tab === tab);
   });
-
   document.getElementById("panel-aule").style.display = (tab === "aule") ? "" : "none";
   document.getElementById("panel-classi").style.display = (tab === "classi") ? "" : "none";
-
   renderGestisciLista(tab);
 }
 
@@ -1147,7 +1638,6 @@ async function aggiungiEntita(tipo) {
   const inputId = tipo === "aule" ? "input-nuova-aula" : "input-nuova-classe";
   const input = document.getElementById(inputId);
   const nome = input.value.trim();
-
   if (!nome) return;
 
   const lista = tipo === "aule" ? auleLista : classiLista;
@@ -1159,7 +1649,6 @@ async function aggiungiEntita(tipo) {
 
   try {
     const ref = await db.collection(tipo).add({ nome: nome });
-
     const nuovoItem = { id: ref.id, nome: nome };
     if (tipo === "aule") {
       auleLista.push(nuovoItem);
@@ -1168,14 +1657,12 @@ async function aggiungiEntita(tipo) {
       classiLista.push(nuovoItem);
       classiLista.sort((a, b) => a.nome.localeCompare(b.nome));
     }
-
     input.value = "";
     renderGestisciLista(tipo);
     aggiornaDropdownModal();
     if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
       popolaDropdownEntita();
     }
-
   } catch (err) {
     console.error("Errore aggiunta:", err);
     alert("Errore durante l'aggiunta. Riprova.");
@@ -1185,13 +1672,11 @@ async function aggiungiEntita(tipo) {
 function iniziaRinomina(tipo, id, nomeAttuale) {
   const itemEl = document.getElementById(`gestisci-item-${id}`);
   if (!itemEl) return;
-
   itemEl.innerHTML = `
     <input type="text" class="gestisci-item-input" id="rinomina-input-${id}" value="${nomeAttuale}" onkeydown="if(event.key==='Enter')salvaRinomina('${tipo}','${id}')">
     <button class="gestisci-item-btn btn-save" onclick="salvaRinomina('${tipo}','${id}')" title="Salva">✅</button>
     <button class="gestisci-item-btn" onclick="renderGestisciLista('${tipo}')" title="Annulla">❌</button>
   `;
-
   const input = document.getElementById(`rinomina-input-${id}`);
   input.focus();
   input.select();
@@ -1200,20 +1685,15 @@ function iniziaRinomina(tipo, id, nomeAttuale) {
 async function salvaRinomina(tipo, id) {
   const input = document.getElementById(`rinomina-input-${id}`);
   if (!input) return;
-
   const nuovoNome = input.value.trim();
   if (!nuovoNome) return;
 
   const lista = tipo === "aule" ? auleLista : classiLista;
   const item = lista.find(i => i.id === id);
   if (!item) return;
-
   const vecchioNome = item.nome;
 
-  if (nuovoNome === vecchioNome) {
-    renderGestisciLista(tipo);
-    return;
-  }
+  if (nuovoNome === vecchioNome) { renderGestisciLista(tipo); return; }
 
   const duplicato = lista.some(i => i.id !== id && i.nome.toLowerCase() === nuovoNome.toLowerCase());
   if (duplicato) {
@@ -1223,26 +1703,17 @@ async function salvaRinomina(tipo, id) {
 
   try {
     await db.collection(tipo).doc(id).update({ nome: nuovoNome });
-
     const campo = tipo === "aule" ? "aula" : "classe";
-    const snapshot = await db.collection("orarioScolastico")
-      .where(campo, "==", vecchioNome)
-      .get();
-
+    const snapshot = await db.collection("orarioScolastico").where(campo, "==", vecchioNome).get();
     if (!snapshot.empty) {
       const batch = db.batch();
-      snapshot.forEach(doc => {
-        batch.update(doc.ref, { [campo]: nuovoNome });
-      });
+      snapshot.forEach(doc => { batch.update(doc.ref, { [campo]: nuovoNome }); });
       await batch.commit();
     }
 
     item.nome = nuovoNome;
     lista.sort((a, b) => a.nome.localeCompare(b.nome));
-
-    lezioniCorrente.forEach(l => {
-      if (l[campo] === vecchioNome) l[campo] = nuovoNome;
-    });
+    lezioniCorrente.forEach(l => { if (l[campo] === vecchioNome) l[campo] = nuovoNome; });
 
     renderGestisciLista(tipo);
     aggiornaDropdownModal();
@@ -1250,7 +1721,6 @@ async function salvaRinomina(tipo, id) {
       popolaDropdownEntita();
     }
     if (entitaSelezionata) renderTabella();
-
   } catch (err) {
     console.error("Errore rinomina:", err);
     alert("Errore durante la rinomina. Riprova.");
@@ -1259,9 +1729,7 @@ async function salvaRinomina(tipo, id) {
 
 async function eliminaEntita(tipo, id, nome) {
   const campo = tipo === "aule" ? "aula" : "classe";
-  const snapshot = await db.collection("orarioScolastico")
-    .where(campo, "==", nome)
-    .get();
+  const snapshot = await db.collection("orarioScolastico").where(campo, "==", nome).get();
 
   if (!snapshot.empty) {
     const conferma = confirm(
@@ -1271,34 +1739,26 @@ async function eliminaEntita(tipo, id, nome) {
     if (!conferma) return;
 
     const batch = db.batch();
-    snapshot.forEach(doc => {
-      batch.update(doc.ref, { [campo]: "" });
-    });
+    snapshot.forEach(doc => { batch.update(doc.ref, { [campo]: "" }); });
     await batch.commit();
-
-    lezioniCorrente.forEach(l => {
-      if (l[campo] === nome) l[campo] = "";
-    });
+    lezioniCorrente.forEach(l => { if (l[campo] === nome) l[campo] = ""; });
   } else {
     if (!confirm(`Eliminare "${nome}"?`)) return;
   }
 
   try {
     await db.collection(tipo).doc(id).delete();
-
     if (tipo === "aule") {
       auleLista = auleLista.filter(a => a.id !== id);
     } else {
       classiLista = classiLista.filter(c => c.id !== id);
     }
-
     renderGestisciLista(tipo);
     aggiornaDropdownModal();
     if ((tipo === "aule" && vistaCorrente === "aula") || (tipo === "classi" && vistaCorrente === "classe")) {
       popolaDropdownEntita();
     }
     if (entitaSelezionata) renderTabella();
-
   } catch (err) {
     console.error("Errore eliminazione:", err);
     alert("Errore durante l'eliminazione. Riprova.");
@@ -1314,8 +1774,7 @@ function aggiornaDropdownModal() {
     selectClasse.innerHTML = `<option value="">— Seleziona classe —</option>`;
     classiLista.forEach(c => {
       const opt = document.createElement("option");
-      opt.value = c.nome;
-      opt.textContent = c.nome;
+      opt.value = c.nome; opt.textContent = c.nome;
       selectClasse.appendChild(opt);
     });
     selectClasse.value = valCorrente;
@@ -1326,8 +1785,7 @@ function aggiornaDropdownModal() {
     selectAula.innerHTML = `<option value="">— Seleziona aula —</option>`;
     auleLista.forEach(a => {
       const opt = document.createElement("option");
-      opt.value = a.nome;
-      opt.textContent = a.nome;
+      opt.value = a.nome; opt.textContent = a.nome;
       selectAula.appendChild(opt);
     });
     selectAula.value = valCorrente;
