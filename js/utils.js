@@ -3,6 +3,11 @@
 // ============================================================
 // Costanti, formattazione date/orari, calcoli fasce orarie,
 // e lettura impostazioni da Firestore.
+//
+// NOVITÀ v3.0:
+// - calcolaFasceUnificate(): calcola fasce mattina + pomeriggio
+// - trovaSlotPerOra(): mappa un orario ad uno slot
+// - calcolaSettimanaDate(): calcola le date lun-ven di una settimana
 // ============================================================
 
 /**
@@ -71,6 +76,16 @@ function oggiISO() {
   return oggi.toISOString().split("T")[0];
 }
 
+/**
+ * Formatta una Date in "YYYY-MM-DD"
+ */
+function dateToISO(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // ──────────────────────────────────────────
 // ORARI
 // ──────────────────────────────────────────
@@ -108,7 +123,7 @@ function calcolaFineLezione(oraInizio, durataMinuti) {
 }
 
 /**
- * Calcola le fasce orarie della mattina dato inizio, durata e numero lezioni.
+ * Calcola le fasce orarie dato inizio, durata e numero.
  * @param {string} oraInizio - Es: "08:00"
  * @param {number} durataLezione - Es: 50 (minuti)
  * @param {number} numeroLezioni - Es: 6
@@ -133,6 +148,121 @@ function calcolaFasceOrarie(oraInizio, durataLezione, numeroLezioni) {
   return fasce;
 }
 
+/**
+ * Calcola fasce unificate mattina + pomeriggio per un giorno.
+ * Usa i nuovi campi (mattina_durataFascia, mattina_numeroFasce, 
+ * pomeriggio_oraInizio, pomeriggio_durataFascia, pomeriggio_numeroFasce)
+ * con fallback ai vecchi campi per backward compatibility.
+ * 
+ * @param {Object} imp - Impostazioni del giorno da Firestore
+ * @returns {{mattina: Array, pomeriggio: Array, tutte: Array, numMattina: number, numPomeriggio: number}}
+ */
+function calcolaFasceUnificate(imp) {
+  if (!imp) return { mattina: [], pomeriggio: [], tutte: [], numMattina: 0, numPomeriggio: 0 };
+
+  // Mattina: usa nuovi campi con fallback ai vecchi
+  const mattinaOra = imp.mattina_oraInizio || "08:00";
+  const mattinaDurata = imp.mattina_durataFascia || imp.mattina_durataLezione || 50;
+  const mattinaNumero = imp.mattina_numeroFasce || imp.mattina_numeroLezioni || 0;
+
+  const fasceMattina = [];
+  let inizioMin = timeToMinutes(mattinaOra);
+  for (let i = 0; i < mattinaNumero; i++) {
+    const start = minutesToTime(inizioMin);
+    const end = minutesToTime(inizioMin + mattinaDurata);
+    fasceMattina.push({
+      slot: i,
+      start: start,
+      end: end,
+      label: `${start} – ${end}`,
+      tipo: "mattina"
+    });
+    inizioMin += mattinaDurata;
+  }
+
+  // Pomeriggio: usa nuovi campi se presenti
+  const fascePomeriggio = [];
+  const pomOra = imp.pomeriggio_oraInizio;
+  const pomDurata = imp.pomeriggio_durataFascia;
+  const pomNumero = imp.pomeriggio_numeroFasce;
+
+  if (pomOra && pomDurata && pomNumero) {
+    let pomInizioMin = timeToMinutes(pomOra);
+    for (let i = 0; i < pomNumero; i++) {
+      const start = minutesToTime(pomInizioMin);
+      const end = minutesToTime(pomInizioMin + pomDurata);
+      fascePomeriggio.push({
+        slot: mattinaNumero + i,
+        start: start,
+        end: end,
+        label: `${start} – ${end}`,
+        tipo: "pomeriggio"
+      });
+      pomInizioMin += pomDurata;
+    }
+  }
+
+  return {
+    mattina: fasceMattina,
+    pomeriggio: fascePomeriggio,
+    tutte: [...fasceMattina, ...fascePomeriggio],
+    numMattina: fasceMattina.length,
+    numPomeriggio: fascePomeriggio.length
+  };
+}
+
+/**
+ * Trova lo slot corrispondente ad un orario specifico all'interno delle fasce.
+ * Usato per mappare ripetizioni (che hanno oraInizio) allo slot della griglia.
+ * @param {Array} fasce - Array di fasce [{slot, start, end, ...}]
+ * @param {string} oraInizio - Es: "15:30"
+ * @returns {number} Indice slot, o -1 se fuori range
+ */
+function trovaSlotPerOra(fasce, oraInizio) {
+  const minuti = timeToMinutes(oraInizio);
+  for (const f of fasce) {
+    const startMin = timeToMinutes(f.start);
+    const endMin = timeToMinutes(f.end);
+    if (minuti >= startMin && minuti < endMin) {
+      return f.slot;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Restituisce il nome del giorno (Lunedì, ...) da una data ISO "YYYY-MM-DD".
+ * @param {string} dataISO
+ * @returns {string} Nome del giorno o "" se weekend/invalido
+ */
+function giornoFromData(dataISO) {
+  const d = new Date(dataISO + "T00:00:00");
+  const dow = d.getDay(); // 0=dom, 1=lun, ..., 5=ven
+  if (dow >= 1 && dow <= 5) return GIORNI[dow - 1];
+  return "";
+}
+
+/**
+ * Calcola le 5 date (lun-ven) di una settimana con offset dal corrente.
+ * @param {number} offset - 0 = settimana corrente, -1 = precedente, +1 = successiva
+ * @returns {string[]} Array di 5 stringhe "YYYY-MM-DD"
+ */
+function calcolaSettimanaDate(offset) {
+  const oggi = new Date();
+  const dow = oggi.getDay(); // 0=dom
+  const diffLun = dow === 0 ? -6 : 1 - dow;
+  const lunedi = new Date(oggi);
+  lunedi.setDate(oggi.getDate() + diffLun + (offset * 7));
+
+  const date = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(lunedi);
+    d.setDate(lunedi.getDate() + i);
+    date.push(dateToISO(d));
+  }
+  return date;
+}
+
 // ──────────────────────────────────────────
 // CALCOLI MESE
 // ──────────────────────────────────────────
@@ -145,11 +275,11 @@ function calcolaFasceOrarie(oraInizio, durataLezione, numeroLezioni) {
  */
 function getGiorniLavorativiMese(anno, mese) {
   const giorni = [];
-  const numGiorni = new Date(anno, mese, 0).getDate(); // ultimo giorno del mese
+  const numGiorni = new Date(anno, mese, 0).getDate();
 
   for (let g = 1; g <= numGiorni; g++) {
     const data = new Date(anno, mese - 1, g);
-    const dow = data.getDay(); // 0=dom, 1=lun, ..., 5=ven, 6=sab
+    const dow = data.getDay();
     if (dow >= 1 && dow <= 5) {
       const iso = data.toISOString().split("T")[0];
       giorni.push(iso);
@@ -173,7 +303,7 @@ function contaGiorniPerNome(anno, mese) {
 
   for (let g = 1; g <= numGiorni; g++) {
     const data = new Date(anno, mese - 1, g);
-    const dow = data.getDay(); // 1=Lunedì...5=Venerdì
+    const dow = data.getDay();
     if (dow >= 1 && dow <= 5) {
       conteggio[GIORNI[dow - 1]]++;
     }
@@ -208,7 +338,12 @@ async function caricaImpostazioniOrari() {
           giorno: giorno,
           mattina_oraInizio: "08:00",
           mattina_durataLezione: 50,
+          mattina_durataFascia: 50,
           mattina_numeroLezioni: 6,
+          mattina_numeroFasce: 6,
+          pomeriggio_oraInizio: "15:00",
+          pomeriggio_durataFascia: 60,
+          pomeriggio_numeroFasce: 3,
           pomeriggio_oraApertura: "15:00",
           pomeriggio_oraChiusura: "18:30"
         };
@@ -218,13 +353,17 @@ async function caricaImpostazioniOrari() {
     return impostazioni;
   } catch (err) {
     console.error("Errore caricamento impostazioni orari:", err);
-    // Ritorna valori di default in caso di errore
     GIORNI.forEach(giorno => {
       impostazioni[giorno] = {
         giorno: giorno,
         mattina_oraInizio: "08:00",
         mattina_durataLezione: 50,
+        mattina_durataFascia: 50,
         mattina_numeroLezioni: 6,
+        mattina_numeroFasce: 6,
+        pomeriggio_oraInizio: "15:00",
+        pomeriggio_durataFascia: 60,
+        pomeriggio_numeroFasce: 3,
         pomeriggio_oraApertura: "15:00",
         pomeriggio_oraChiusura: "18:30"
       };
