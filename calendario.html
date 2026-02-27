@@ -476,6 +476,142 @@
             margin-left: 4px;
         }
 
+        /* ── Modal Elenco Studenti ── */
+        .studenti-modal {
+            max-width: 640px;
+        }
+        .studenti-classe-group {
+            margin-bottom: 20px;
+        }
+        .studenti-classe-group:last-child {
+            margin-bottom: 0;
+        }
+        .studenti-classe-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: #E3F2FD;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .studenti-classe-nome {
+            font-family: 'Lora', serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1565C0;
+        }
+        .studenti-classe-count {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1565C0;
+            background: rgba(21, 101, 192, 0.1);
+            padding: 2px 10px;
+            border-radius: 12px;
+        }
+        .studenti-list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-bottom: 1px solid #F5F3EF;
+            transition: background 0.1s;
+        }
+        .studenti-list-item:last-child {
+            border-bottom: none;
+        }
+        .studenti-list-item:hover {
+            background: #FAFAF8;
+        }
+        .studenti-list-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #1B4332;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Lora', serif;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .studenti-list-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .studenti-list-nome {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        .studenti-list-contatti {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 12px;
+            color: #777;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .studenti-list-contatti a {
+            color: #1B4332;
+            text-decoration: none;
+        }
+        .studenti-list-contatti a:hover {
+            text-decoration: underline;
+        }
+        .studenti-copy-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: #D8F3DC;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .studenti-copy-bar span {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13px;
+            color: #1B4332;
+            font-weight: 500;
+        }
+        .studenti-copy-btn {
+            background: #1B4332;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .studenti-copy-btn:hover {
+            background: #245A3F;
+        }
+        .studenti-empty {
+            text-align: center;
+            padding: 32px 20px;
+            color: #AAA;
+        }
+        .studenti-empty .empty-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+            opacity: 0.4;
+        }
+        .studenti-empty p {
+            font-size: 14px;
+            color: #999;
+        }
+        .studenti-loading {
+            text-align: center;
+            padding: 40px;
+        }
+
         /* Responsive */
         @media (max-width: 900px) {
             .orario-table thead th.col-fascia { width: 70px; }
@@ -507,7 +643,7 @@
     <main class="main-content">
         <div class="page-body">
 
-            <!-- TOOLBAR: vista + selettore + bottone aggiungi -->
+            <!-- TOOLBAR: vista + selettore + bottoni -->
             <div class="toolbar" id="admin-toolbar">
                 <div class="toolbar-left">
                     <!-- Selettore vista -->
@@ -523,6 +659,10 @@
                     </select>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
+                    <!-- ★ NUOVO: Pulsante Elenco Studenti ★ -->
+                    <button class="btn btn-accent" id="btn-elenco-studenti" style="display:none;" onclick="apriModalStudenti()">
+                        👥 Elenco Studenti
+                    </button>
                     <button class="btn btn-primary" id="btn-aggiungi" disabled>
                         ➕ Aggiungi Lezione
                     </button>
@@ -630,6 +770,19 @@
                         <!-- Popolata da JS -->
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ ★ MODAL ELENCO STUDENTI ★ ═══════ -->
+    <div class="modal-overlay" id="studenti-overlay">
+        <div class="modal studenti-modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="studenti-modal-title">👥 Elenco Studenti</h3>
+                <button class="modal-close" onclick="chiudiModalStudenti()">✕</button>
+            </div>
+            <div class="modal-body" id="studenti-modal-body" style="max-height:70vh;overflow-y:auto;">
+                <!-- Popolato da JS -->
             </div>
         </div>
     </div>
