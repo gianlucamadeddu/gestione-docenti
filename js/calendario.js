@@ -197,6 +197,9 @@ async function initAdmin() {
   // Setup modal
   setupModal();
 
+  // Carica template email
+  await EmailModule.init();
+
   // Mostra stato iniziale
   mostraEmptyPerVista();
 }
@@ -214,6 +217,9 @@ async function initDocente() {
   }
 
   await caricaEmostraOrario();
+
+  // Carica template email
+  await EmailModule.init();
 
   // ★ Mostra pulsante elenco studenti per il docente
   aggiornaBottoneStudenti();
@@ -368,7 +374,10 @@ async function apriModalStudenti() {
       html += `
         <div class="studenti-copy-bar">
           <span>📧 ${tutteEmail.length} email disponibili</span>
-          <button class="studenti-copy-btn" onclick="copiaEmailStudenti()">Copia tutte le email</button>
+          <div style="display:flex;gap:6px;">
+            <button class="studenti-copy-btn" onclick="copiaEmailStudenti()">📋 Copia email</button>
+            <button class="studenti-copy-btn" style="background:#1565C0;" onclick="inviaEmailDaCalendario()">📧 Componi email</button>
+          </div>
         </div>
       `;
     }
@@ -469,7 +478,8 @@ async function copiaEmailStudenti() {
     await navigator.clipboard.writeText(testo);
 
     // Feedback visivo
-    const btn = document.querySelector(".studenti-copy-btn");
+    const btns = document.querySelectorAll(".studenti-copy-btn");
+    const btn = btns[0]; // primo bottone = copia
     if (btn) {
       const original = btn.textContent;
       btn.textContent = "✅ Copiato!";
@@ -482,6 +492,60 @@ async function copiaEmailStudenti() {
   } catch (err) {
     console.error("Errore copia email:", err);
     alert("Errore durante la copia. Prova a copiare manualmente.");
+  }
+}
+
+/**
+ * Apri modal composizione email con tutti gli studenti del calendario
+ */
+async function inviaEmailDaCalendario() {
+  const classi = getClassiDalleLezioni();
+  if (classi.length === 0) return;
+
+  try {
+    const snapshot = await db.collection("studenti")
+      .where("classe", "in", classi)
+      .get();
+
+    const destinatari = [];
+    snapshot.forEach(doc => {
+      const s = doc.data();
+      if (s.email && s.email.trim()) {
+        destinatari.push({
+          nome: s.nome,
+          cognome: s.cognome,
+          email: s.email,
+          classe: s.classe || ""
+        });
+      }
+    });
+
+    if (destinatari.length === 0) {
+      alert("Nessuno studente con email registrata.");
+      return;
+    }
+
+    // Variabili contestuali
+    const vars = {};
+    if (vistaCorrente === "classe" && entitaSelezionata) {
+      vars.classe = entitaSelezionata;
+    }
+    // Nome docente
+    if (vistaCorrente === "docente" && entitaSelezionata) {
+      const doc = docentiLista.find(d => d.id === entitaSelezionata);
+      if (doc) vars.docente = `${doc.cognome} ${doc.nome}`;
+    }
+    if (isDocente) {
+      vars.docente = getDocenteNome ? (getDocenteNome() || "Docente") : "Docente";
+    }
+
+    // Chiudi modal studenti e apri modal email
+    chiudiModalStudenti();
+    EmailModule.apriComponi(destinatari, vars);
+
+  } catch (err) {
+    console.error("Errore invio email da calendario:", err);
+    alert("Errore nel caricamento. Riprova.");
   }
 }
 
