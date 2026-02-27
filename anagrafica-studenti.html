@@ -335,6 +335,9 @@
                     </select>
                 </div>
                 <div class="toolbar-right" style="display:flex;gap:10px;">
+                    <button class="btn btn-accent" id="btnInviaEmail" style="display:none;" onclick="inviaEmailFiltrati()">
+                        📧 Invia Email
+                    </button>
                     <button class="btn btn-primary" id="btnAggiungi" onclick="apriModalNuovo()">
                         ➕ Nuovo Studente
                     </button>
@@ -477,6 +480,7 @@
     <script src="js/firebase-config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/template.js"></script>
+    <script src="js/email.js"></script>
     <script src="js/studenti.js"></script>
 </body>
 </html>
