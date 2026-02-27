@@ -1,15 +1,17 @@
 // ============================================================
-// studenti.js — CRUD Anagrafica Studenti
+// studenti.js — CRUD Anagrafica Studenti + Email
 // ============================================================
 // Gestisce: lista, ricerca, filtro per classe, creazione,
-// modifica, eliminazione studenti. Firestore collection: "studenti"
+// modifica, eliminazione studenti, invio email.
+// Firestore collection: "studenti"
 // ============================================================
 
 // ── Stato ──
 let studentiLista = [];
 let classiLista = [];
-let editingId = null;     // null = nuovo, string = modifica
-let deletingId = null;    // id studente da eliminare
+let editingId = null;
+let deletingId = null;
+let studentiFiltrati = [];
 
 // ══════════════════════════════════════════════
 // INIT
@@ -19,19 +21,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   checkAdmin();
   initPage("Anagrafica Studenti");
 
-  // Carica classi per i filtri e i dropdown
   await caricaClassi();
-
-  // Carica studenti
   await caricaStudenti();
+  await EmailModule.init();
 
-  // Event listeners
   document.getElementById("searchInput").addEventListener("input", filtraERendi);
   document.getElementById("filterClasse").addEventListener("change", filtraERendi);
 });
 
 // ══════════════════════════════════════════════
-// CARICA CLASSI (per dropdown e filtri)
+// CARICA CLASSI
 // ══════════════════════════════════════════════
 async function caricaClassi() {
   try {
@@ -41,14 +40,12 @@ async function caricaClassi() {
       classiLista.push({ id: doc.id, ...doc.data() });
     });
 
-    // Popola filtro
     const filterSelect = document.getElementById("filterClasse");
     filterSelect.innerHTML = '<option value="">Tutte le classi</option>';
     classiLista.forEach(c => {
       filterSelect.innerHTML += `<option value="${c.nome}">${c.nome}</option>`;
     });
 
-    // Popola dropdown nel modal
     const modalSelect = document.getElementById("sClasse");
     modalSelect.innerHTML = '<option value="">— Nessuna classe —</option>';
     classiLista.forEach(c => {
@@ -85,15 +82,11 @@ async function caricaStudenti() {
 // AGGIORNA STATISTICHE
 // ══════════════════════════════════════════════
 function aggiornaStats() {
-  // Totale studenti
   document.getElementById("stat-totale").textContent = studentiLista.length;
 
-  // Classi attive (classi che hanno almeno 1 studente)
   const classiAttive = new Set(studentiLista.filter(s => s.classe).map(s => s.classe));
   document.getElementById("stat-classi").textContent = classiAttive.size;
 
-  // Studenti minorenni
-  const oggi = new Date();
   const minorenni = studentiLista.filter(s => {
     if (!s.dataNascita) return false;
     return calcolaEta(s.dataNascita) < 18;
@@ -110,12 +103,10 @@ function filtraERendi() {
 
   let filtrati = studentiLista;
 
-  // Filtro per classe
   if (classeFilter) {
     filtrati = filtrati.filter(s => s.classe === classeFilter);
   }
 
-  // Filtro per testo (nome, cognome, email)
   if (query) {
     filtrati = filtrati.filter(s => {
       const nomeCompleto = `${s.nome} ${s.cognome}`.toLowerCase();
@@ -125,7 +116,76 @@ function filtraERendi() {
     });
   }
 
+  studentiFiltrati = filtrati;
+  aggiornaBottoneEmail();
   renderTabella(filtrati);
+}
+
+// ══════════════════════════════════════════════
+// BOTTONE EMAIL
+// ══════════════════════════════════════════════
+function aggiornaBottoneEmail() {
+  const btn = document.getElementById("btnInviaEmail");
+  if (!btn) return;
+
+  const conEmail = studentiFiltrati.filter(s => s.email && s.email.trim()).length;
+  if (conEmail > 0) {
+    btn.style.display = "";
+    btn.innerHTML = `📧 Invia Email (${conEmail})`;
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+// ══════════════════════════════════════════════
+// INVIA EMAIL AI FILTRATI
+// ══════════════════════════════════════════════
+function inviaEmailFiltrati() {
+  const destinatari = studentiFiltrati
+    .filter(s => s.email && s.email.trim())
+    .map(s => ({
+      nome: s.nome,
+      cognome: s.cognome,
+      email: s.email,
+      classe: s.classe || ""
+    }));
+
+  if (destinatari.length === 0) {
+    alert("Nessuno studente con email tra quelli filtrati.");
+    return;
+  }
+
+  const classeFilter = document.getElementById("filterClasse").value;
+  const vars = {};
+  if (classeFilter) vars.classe = classeFilter;
+
+  EmailModule.apriComponi(destinatari, vars);
+}
+
+// ══════════════════════════════════════════════
+// INVIA EMAIL A SINGOLO STUDENTE
+// ══════════════════════════════════════════════
+function inviaEmailSingolo(id) {
+  const studente = studentiLista.find(s => s.id === id);
+  if (!studente || !studente.email) {
+    alert("Questo studente non ha un'email registrata.");
+    return;
+  }
+
+  const destinatari = [{
+    nome: studente.nome,
+    cognome: studente.cognome,
+    email: studente.email,
+    classe: studente.classe || ""
+  }];
+
+  const vars = {
+    nome: studente.nome,
+    cognome: studente.cognome,
+    classe: studente.classe || ""
+  };
+
+  EmailModule.apriComponi(destinatari, vars);
 }
 
 // ══════════════════════════════════════════════
@@ -156,13 +216,11 @@ function renderTabella(studenti) {
     const eta = s.dataNascita ? calcolaEta(s.dataNascita) : null;
     const isMinore = eta !== null && eta < 18;
 
-    // Contatti studente
     let contatti = "";
     if (s.telefono) contatti += `📞 <a href="tel:${s.telefono}">${s.telefono}</a><br>`;
     if (s.email) contatti += `✉️ <a href="mailto:${s.email}">${s.email}</a>`;
     if (!contatti) contatti = '<span style="color:var(--text-muted)">—</span>';
 
-    // Contatti genitore
     let genitore = "";
     if (s.genitore && (s.genitore.nome || s.genitore.cognome)) {
       genitore += `<strong>${s.genitore.nome || ""} ${s.genitore.cognome || ""}</strong><br>`;
@@ -193,6 +251,7 @@ function renderTabella(studenti) {
         <td class="contatto-cell" style="font-size:12.5px;">${genitore}</td>
         <td>
           <div class="azioni-cell" style="justify-content:center;">
+            ${s.email ? `<button class="btn-action" title="Invia email" onclick="inviaEmailSingolo('${s.id}')" style="color:#1565C0;">📧</button>` : ""}
             <button class="btn-action edit" title="Modifica" onclick="apriModalModifica('${s.id}')">✏️</button>
             <button class="btn-action delete" title="Elimina" onclick="apriModalElimina('${s.id}')">🗑️</button>
           </div>
@@ -210,7 +269,6 @@ function apriModalNuovo() {
   document.getElementById("modalTitolo").textContent = "Nuovo Studente";
   document.getElementById("btnSalva").textContent = "Salva Studente";
 
-  // Reset campi
   ["sNome", "sCognome", "sDataNascita", "sTelefono", "sEmail", "sNote",
    "gNome", "gCognome", "gTelefono", "gEmail"].forEach(id => {
     document.getElementById(id).value = "";
@@ -231,7 +289,6 @@ function apriModalModifica(id) {
   document.getElementById("modalTitolo").textContent = "Modifica Studente";
   document.getElementById("btnSalva").textContent = "Salva Modifiche";
 
-  // Popola campi studente
   document.getElementById("sNome").value = studente.nome || "";
   document.getElementById("sCognome").value = studente.cognome || "";
   document.getElementById("sDataNascita").value = studente.dataNascita || "";
@@ -240,7 +297,6 @@ function apriModalModifica(id) {
   document.getElementById("sEmail").value = studente.email || "";
   document.getElementById("sNote").value = studente.note || "";
 
-  // Popola campi genitore
   const g = studente.genitore || {};
   document.getElementById("gNome").value = g.nome || "";
   document.getElementById("gCognome").value = g.cognome || "";
@@ -250,22 +306,18 @@ function apriModalModifica(id) {
   document.getElementById("modalStudente").classList.add("active");
 }
 
-// ══════════════════════════════════════════════
-// CHIUDI MODAL
-// ══════════════════════════════════════════════
 function chiudiModal() {
   document.getElementById("modalStudente").classList.remove("active");
   editingId = null;
 }
 
 // ══════════════════════════════════════════════
-// SALVA STUDENTE (crea o aggiorna)
+// SALVA STUDENTE
 // ══════════════════════════════════════════════
 async function salvaStudente() {
   const nome = document.getElementById("sNome").value.trim();
   const cognome = document.getElementById("sCognome").value.trim();
 
-  // Validazione minima
   if (!nome || !cognome) {
     alert("Nome e Cognome sono obbligatori.");
     return;
@@ -276,8 +328,7 @@ async function salvaStudente() {
   btnSalva.textContent = "Salvataggio...";
 
   const dati = {
-    nome: nome,
-    cognome: cognome,
+    nome, cognome,
     dataNascita: document.getElementById("sDataNascita").value || "",
     classe: document.getElementById("sClasse").value || "",
     telefono: document.getElementById("sTelefono").value.trim() || "",
@@ -293,16 +344,11 @@ async function salvaStudente() {
 
   try {
     if (editingId) {
-      // Aggiorna
       await db.collection("studenti").doc(editingId).update(dati);
-      console.log("✅ Studente aggiornato:", editingId);
     } else {
-      // Crea nuovo
       dati.creatoIl = firebase.firestore.FieldValue.serverTimestamp();
-      const ref = await db.collection("studenti").add(dati);
-      console.log("✅ Studente creato:", ref.id);
+      await db.collection("studenti").add(dati);
     }
-
     chiudiModal();
     await caricaStudenti();
   } catch (err) {
@@ -315,7 +361,7 @@ async function salvaStudente() {
 }
 
 // ══════════════════════════════════════════════
-// MODAL: ELIMINA STUDENTE
+// ELIMINA STUDENTE
 // ══════════════════════════════════════════════
 function apriModalElimina(id) {
   const studente = studentiLista.find(s => s.id === id);
@@ -344,8 +390,6 @@ async function confermaElimina() {
 
   try {
     await db.collection("studenti").doc(deletingId).delete();
-    console.log("🗑️ Studente eliminato:", deletingId);
-
     chiudiModalElimina();
     await caricaStudenti();
   } catch (err) {
@@ -358,7 +402,7 @@ async function confermaElimina() {
 }
 
 // ══════════════════════════════════════════════
-// UTILITY: Calcola età
+// UTILITY
 // ══════════════════════════════════════════════
 function calcolaEta(dataNascitaStr) {
   if (!dataNascitaStr) return null;
