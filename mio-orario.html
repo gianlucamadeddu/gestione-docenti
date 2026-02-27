@@ -11,7 +11,7 @@
     <link rel="icon" href="data:,">
     <style>
         /* ═══════════════════════════════════════════
-           ORARIO DOCENTE — STESSI STILI DI CALENDARIO
+           ORARIO DOCENTE v3.0 — Griglia unificata
            ═══════════════════════════════════════════ */
 
         .orario-wrapper {
@@ -21,188 +21,187 @@
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-
-        .orario-table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-
+        .orario-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .orario-table thead th {
-            background: #1B4332;
-            color: #FFFFFF;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 14px 12px;
-            text-align: center;
-            letter-spacing: 0.3px;
+            background: #1B4332; color: #FFFFFF;
+            font-family: 'Source Sans 3', sans-serif; font-size: 14px; font-weight: 600;
+            padding: 14px 12px; text-align: center; letter-spacing: 0.3px;
             border-right: 1px solid rgba(255,255,255,0.15);
         }
-
         .orario-table thead th:last-child { border-right: none; }
-
         .orario-table thead th.col-fascia {
-            width: 100px;
-            background: #14322A;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            width: 100px; background: #14322A;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
         }
-
         .orario-table tbody td {
-            padding: 10px 8px;
-            text-align: center;
-            vertical-align: middle;
-            border-bottom: 1px solid #EFEDE8;
-            border-right: 1px solid #EFEDE8;
-            min-height: 60px;
-            height: 60px;
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 13.5px;
+            padding: 6px 4px; text-align: center; vertical-align: top;
+            border-bottom: 1px solid #EFEDE8; border-right: 1px solid #EFEDE8;
+            min-height: 60px; font-family: 'Source Sans 3', sans-serif; font-size: 13.5px;
         }
-
         .orario-table tbody td:last-child { border-right: none; }
         .orario-table tbody tr:last-child td { border-bottom: none; }
 
         .td-fascia {
-            background: #F8F6F2;
-            font-weight: 600;
-            color: #555;
-            font-size: 12.5px;
-            line-height: 1.3;
+            background: #F8F6F2; font-weight: 600; color: #555;
+            font-size: 12.5px; line-height: 1.3; vertical-align: middle;
+            text-align: center; padding: 10px 6px;
         }
-
+        .td-fascia-pom { background: #FFF9F0; }
         .fascia-inizio {
-            font-family: 'Lora', serif;
-            font-size: 15px;
-            font-weight: 700;
-            color: #1B4332;
-            display: block;
+            font-family: 'Lora', serif; font-size: 15px; font-weight: 700;
+            color: #1B4332; display: block;
+        }
+        .fascia-fine { font-size: 11.5px; color: #999; display: block; margin-top: 1px; }
+
+        /* Separatore */
+        .separator-row td { border-bottom: none !important; }
+        .td-separator { padding: 0 !important; border-right: none !important; border-bottom: none !important; }
+        .separator-line {
+            display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+            background: linear-gradient(90deg, #FFF3E0 0%, #FFF8EC 50%, #FFF3E0 100%);
+            border-top: 2px solid #FFE0B2; border-bottom: 2px solid #FFE0B2;
+        }
+        .separator-label {
+            font-family: 'Source Sans 3', sans-serif; font-size: 12px; font-weight: 700;
+            color: #E65100; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
         }
 
-        .fascia-fine {
-            font-size: 11.5px;
-            color: #999;
-            display: block;
-            margin-top: 1px;
-        }
-
-        .cella-occupata { background: #F0FAF3; }
-
-        .cella-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .cella-materia {
-            font-weight: 600;
-            color: #1B4332;
-            font-size: 13.5px;
-            line-height: 1.2;
-        }
-
+        /* Celle */
+        .cella-occupata-multi { padding: 4px !important; vertical-align: top; }
+        .cella-item { border-radius: 8px; padding: 6px 8px; position: relative; margin-bottom: 3px; transition: all 0.15s ease; }
+        .cella-item:last-child { margin-bottom: 0; }
+        .cella-lezione { background: #E3F2FD; border-left: 3px solid #1565C0; }
+        .cella-ripetizione { background: #FFF3E0; border-left: 3px solid #E65100; cursor: pointer; }
+        .cella-ripetizione:hover { background: #FFE0B2; }
+        .cella-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+        .cella-materia { font-weight: 600; color: #0D47A1; font-size: 12.5px; line-height: 1.2; }
+        .cella-materia-rip { font-weight: 600; color: #BF360C; font-size: 12.5px; line-height: 1.2; }
         .cella-classe {
-            background: #E3F2FD;
-            color: #1565C0;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 4px;
-            display: inline-block;
+            background: rgba(21, 101, 192, 0.12); color: #1565C0;
+            font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; display: inline-block;
         }
-
-        .cella-vuota { color: #DDD; }
-
-        .cella-disabled {
-            background: #F5F3EF;
-            color: transparent;
+        .cella-aula-tag {
+            background: rgba(230, 81, 0, 0.1); color: #E65100;
+            font-size: 9.5px; font-weight: 600; padding: 1px 5px; border-radius: 4px; display: inline-block;
         }
-
-        .orario-loading {
-            text-align: center;
-            padding: 60px 24px;
+        .cella-studente {
+            background: rgba(230, 81, 0, 0.08); color: #BF360C;
+            font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 4px; display: inline-block;
         }
+        .cella-docente-rip {
+            background: #F3E5F5; color: #6A1B9A;
+            font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 4px; display: inline-block;
+        }
+        .cella-ora-rip { font-size: 9.5px; color: #999; font-weight: 500; }
+        .cella-vuota { color: #DDD; vertical-align: middle; }
+        .cella-disabled { background: #F5F3EF; color: transparent; }
 
+        .orario-loading { text-align: center; padding: 60px 24px; }
         .orario-loading .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #EFEDE8;
-            border-top-color: #1B4332;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 16px;
+            width: 40px; height: 40px; border: 3px solid #EFEDE8; border-top-color: #1B4332;
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;
         }
-
-        .orario-loading p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #999;
-        }
-
-        .orario-empty {
-            text-align: center;
-            padding: 48px 24px;
-            color: #AAA;
-        }
-
-        .orario-empty .empty-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-            opacity: 0.4;
-        }
-
-        .orario-empty p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 15px;
-            color: #999;
-        }
+        .orario-loading p { font-family: 'Source Sans 3', sans-serif; font-size: 14px; color: #999; }
+        .orario-empty { text-align: center; padding: 48px 24px; color: #AAA; }
+        .orario-empty .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+        .orario-empty p { font-family: 'Source Sans 3', sans-serif; font-size: 15px; color: #999; }
 
         /* Info box docente */
         .docente-info-box {
-            background: #F0FAF3;
-            border: 1px solid #D8F3DC;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            background: #F0FAF3; border: 1px solid #D8F3DC; border-radius: 10px;
+            padding: 16px 20px; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .docente-info-box .info-icon { font-size: 24px; flex-shrink: 0; }
+        .docente-info-box p { font-family: 'Source Sans 3', sans-serif; font-size: 14px; color: #333; }
+        .docente-info-box strong { color: #1B4332; }
+
+        /* Week nav */
+        .week-nav {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .week-nav-center {
+            font-family: 'Lora', serif; font-size: 16px; font-weight: 600;
+            color: #1B4332; min-width: 160px; text-align: center;
         }
 
-        .docente-info-box .info-icon {
-            font-size: 24px;
-            flex-shrink: 0;
+        /* Toolbar docente */
+        .docente-toolbar {
+            display: flex; align-items: center; justify-content: flex-end;
+            gap: 8px; margin-bottom: 16px;
         }
 
-        .docente-info-box p {
-            font-family: 'Source Sans 3', sans-serif;
-            font-size: 14px;
-            color: #333;
+        /* Legenda */
+        .legenda-bar {
+            display: flex; align-items: center; gap: 20px; margin-top: 12px;
+            padding: 10px 16px; background: #FFFFFF; border: 1px solid #DDD9D0;
+            border-radius: 8px; font-family: 'Source Sans 3', sans-serif; font-size: 13px;
         }
+        .legenda-item { display: inline-flex; align-items: center; gap: 6px; }
+        .legenda-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+        .legenda-dot-lez { background: #E3F2FD; border: 1.5px solid #1565C0; }
+        .legenda-dot-rip { background: #FFF3E0; border: 1.5px solid #E65100; }
 
-        .docente-info-box strong {
-            color: #1B4332;
+        /* Studenti modal styles (same as calendario) */
+        .studenti-modal { max-width: 640px; }
+        .studenti-classe-group { margin-bottom: 20px; }
+        .studenti-classe-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: #E3F2FD; border-radius: 8px; margin-bottom: 10px;
         }
+        .studenti-classe-nome { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: #1565C0; }
+        .studenti-classe-count {
+            font-family: 'Source Sans 3', sans-serif; font-size: 12px; font-weight: 600; color: #1565C0;
+            background: rgba(21, 101, 192, 0.1); padding: 2px 10px; border-radius: 12px;
+        }
+        .studenti-list-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; border-bottom: 1px solid #F5F3EF;
+        }
+        .studenti-list-item:hover { background: #FAFAF8; }
+        .studenti-list-avatar {
+            width: 32px; height: 32px; border-radius: 50%; background: #1B4332; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Lora', serif; font-size: 11px; font-weight: 700; flex-shrink: 0;
+        }
+        .studenti-list-info { flex: 1; min-width: 0; }
+        .studenti-list-nome { font-size: 14px; font-weight: 600; color: #333; }
+        .studenti-list-contatti { font-size: 12px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .studenti-list-contatti a { color: #1B4332; text-decoration: none; }
+        .studenti-copy-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background: #D8F3DC; border-radius: 8px; margin-bottom: 16px;
+        }
+        .studenti-copy-bar span { font-size: 13px; color: #1B4332; font-weight: 500; }
+        .studenti-copy-btn {
+            background: #1B4332; color: #fff; border: none;
+            padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .studenti-empty { text-align: center; padding: 32px 20px; color: #AAA; }
+        .studenti-empty .empty-icon { font-size: 36px; margin-bottom: 8px; opacity: 0.4; }
+
+        /* Dettaglio ripetizione */
+        .dettaglio-riga {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 10px 0; border-bottom: 1px solid #F5F3EF;
+        }
+        .dettaglio-riga:last-child { border-bottom: none; }
+        .dettaglio-label { flex: 0 0 120px; font-size: 13px; color: #777; font-weight: 500; }
+        .dettaglio-valore { font-size: 14px; color: #333; font-weight: 500; }
 
         @media (max-width: 900px) {
             .orario-table thead th.col-fascia { width: 70px; }
             .orario-table thead th { font-size: 12px; padding: 10px 6px; }
-            .orario-table tbody td { padding: 8px 4px; font-size: 12px; }
+            .orario-table tbody td { padding: 4px 2px; font-size: 12px; }
             .fascia-inizio { font-size: 13px; }
-            .fascia-fine { font-size: 10px; }
-            .cella-materia { font-size: 12px; }
-            .cella-classe { font-size: 10px; padding: 1px 6px; }
+            .cella-materia, .cella-materia-rip { font-size: 11px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Sidebar e header creati da initPage() -->
-
-    <!-- MAIN CONTENT -->
     <main class="main-content">
         <div class="page-body">
 
@@ -210,6 +209,21 @@
             <div class="docente-info-box" id="docente-info-box">
                 <span class="info-icon">📋</span>
                 <p>Il tuo orario scolastico settimanale, <strong id="docente-nome-display">Docente</strong>.</p>
+            </div>
+
+            <!-- Toolbar docente -->
+            <div class="docente-toolbar">
+                <button class="btn btn-accent" id="btn-elenco-studenti" style="display:none;" onclick="apriModalStudenti()">
+                    👥 Elenco Studenti
+                </button>
+            </div>
+
+            <!-- WEEK NAVIGATION -->
+            <div class="week-nav">
+                <button class="btn btn-secondary btn-sm" id="btn-prev-week">← Prec</button>
+                <button class="btn btn-secondary btn-sm" id="btn-oggi-week">Oggi</button>
+                <button class="btn btn-secondary btn-sm" id="btn-next-week">Succ →</button>
+                <span class="week-nav-center" id="label-settimana">—</span>
             </div>
 
             <!-- TABELLA ORARIO -->
@@ -222,8 +236,45 @@
                 </div>
             </div>
 
+            <!-- LEGENDA -->
+            <div class="legenda-bar">
+                <span class="legenda-item">
+                    <span class="legenda-dot legenda-dot-lez"></span>
+                    <span>Lezione</span>
+                </span>
+                <span class="legenda-item">
+                    <span class="legenda-dot legenda-dot-rip"></span>
+                    <span>Ripetizione</span>
+                </span>
+            </div>
+
         </div>
     </main>
+
+    <!-- MODAL ELENCO STUDENTI -->
+    <div class="modal-overlay" id="studenti-overlay">
+        <div class="modal studenti-modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="studenti-modal-title">👥 I Miei Studenti</h3>
+                <button class="modal-close" onclick="chiudiModalStudenti()">✕</button>
+            </div>
+            <div class="modal-body" id="studenti-modal-body" style="max-height:70vh;overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DETTAGLIO RIPETIZIONE -->
+    <div class="modal-overlay" id="dettaglio-rip-overlay">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Dettaglio Ripetizione</h3>
+                <button class="modal-close" onclick="chiudiDettaglioRipetizione()">✕</button>
+            </div>
+            <div class="modal-body" id="dettaglio-rip-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="chiudiDettaglioRipetizione()">Chiudi</button>
+            </div>
+        </div>
+    </div>
 
     <!-- SCRIPTS -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -232,6 +283,7 @@
     <script src="js/auth.js"></script>
     <script src="js/template.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/email.js"></script>
     <script src="js/calendario.js"></script>
 
 </body>
